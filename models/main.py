@@ -1,4 +1,7 @@
 """Script to run the baselines."""
+from datetime import (
+    datetime
+)
 import importlib
 import logging
 import os
@@ -19,10 +22,12 @@ from utils.model_utils import read_data
 STAT_METRICS_PATH = "metrics/stat_metrics.csv"
 SYS_METRICS_PATH = "metrics/sys_metrics.csv"
 
+SECTION_STR = "\n############################## {} ##############################"
+
 logger = logging.getLogger("MAIN")
 
 def main():
-
+    start_time = datetime.now()
     args = parse_args()
 
     # Set the random seed if provided (affects client sampling, and batching)
@@ -37,7 +42,7 @@ def main():
         print("Please specify a valid dataset and a valid model.")
     model_path = f"{args.dataset}.{args.model}"
     
-    print(f"############################## {model_path} ##############################")
+    print(SECTION_STR.format(model_path))
     mod = importlib.import_module(model_path)
     ClientModel = getattr(mod, "ClientModel")
 
@@ -97,6 +102,10 @@ def main():
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
             print_stats(i + 1, server, clients, client_num_samples, args, stat_writer_fn, args.use_val_set)
     
+    end_time = datetime.now()
+
+    print(SECTION_STR.format("Post-Simulation"))
+    print(f"Total Simulation time: {end_time - start_time}")
     # Save server model
     ckpt_path = os.path.join("checkpoints", args.dataset)
     if not os.path.exists(ckpt_path):
