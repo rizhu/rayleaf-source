@@ -3,7 +3,7 @@ matplotlib
 numpy
 pandas
 Pillow
+ray
 scipy
 torch
 torchvision
-tqdm

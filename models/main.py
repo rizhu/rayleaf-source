@@ -6,6 +6,7 @@ import random
 
 import torch
 import numpy as np
+import ray
 
 import metrics.writer as metrics_writer
 
@@ -22,6 +23,7 @@ SYS_METRICS_PATH = "metrics/sys_metrics.csv"
 logger = logging.getLogger("MAIN")
 
 def main():
+    ray.init()
 
     args = parse_args()
 
@@ -54,7 +56,8 @@ def main():
     model_settings = tuple(model_settings)
 
     # Get cpu or gpu device for training.
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
     print(f"Using {device} device")
 
     # Create client model, and share params with server model
@@ -115,7 +118,7 @@ def create_clients(users: list, groups: list, train_data: dict, eval_data: dict,
         groups = [[] for _ in users]
 
     clients = [
-        Client(
+        Client.remote(
             client_id=u,
             train_data=train_data[u],
             eval_data=eval_data[u],

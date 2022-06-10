@@ -1,11 +1,11 @@
-import numpy as np
-from tqdm import tqdm
-
-import torch
-
 from collections import (
     OrderedDict
 )
+
+import numpy as np
+import ray
+
+import torch
 
 """
    TODO: Clients are able to learn but server isn"t learning for some reason.
@@ -36,7 +36,7 @@ class Server:
         np.random.seed(my_round)
         self.selected_clients = np.random.choice(possible_clients, num_clients, replace=False)
 
-        return [(c.num_train_samples, c.num_test_samples) for c in self.selected_clients]   
+        return [(ray.get(c.num_train_samples.remote()), ray.get(c.num_test_samples.remote())) for c in self.selected_clients]   
 
     def train_model(self, num_epochs: int = 1, batch_size: int = 10, clients=None) -> None:
         """Trains self.model_params on given clients.
@@ -60,11 +60,18 @@ class Server:
         if clients is None:
             clients = self.selected_clients
         
-        for client in tqdm(clients, desc="Training clients", leave=False):
-            client.model.load_state_dict(self.model_params)
-            num_samples, update = client.train(num_epochs, batch_size)
+        training_futures = []
+        for client in clients:
+            client.set_params.remote(self.model_params)
+            training_futures.append(client.train.remote(num_epochs, batch_size))
 
-            self.updates.append((num_samples, update))
+        while len(training_futures) > 0:
+            complete, incomplete = ray.wait(training_futures)
+
+            for result in ray.get(complete):
+                self.updates.append(result)
+
+            training_futures = incomplete
 
     @torch.no_grad()
     def update_model(self) -> None:
@@ -98,11 +105,20 @@ class Server:
 
         if clients_to_test is None:
             clients_to_test = self.selected_clients
+        
+        test_futures = []
+        for client in clients_to_test:
+            client.set_params.remote(self.model_params)
+            test_futures.append(client.test.remote(set_to_use))
 
-        for client in tqdm(clients_to_test, desc=f"Evaluating on {set_to_use} set", leave=False):
-            client.model.load_state_dict(self.model_params)
-            c_metrics = client.test(set_to_use)
-            metrics[client.id] = c_metrics
+        while len(test_futures) > 0:
+            complete, incomplete = ray.wait(test_futures)
+
+            for client_id, client_metrics in ray.get(complete):
+                metrics[client_id] = client_metrics
+
+            test_futures = incomplete
+
         
         return metrics
 
@@ -117,9 +133,9 @@ class Server:
         if clients is None:
             clients = self.selected_clients
 
-        ids = [c.id for c in clients]
-        groups = {c.id: c.group for c in clients}
-        num_samples = {c.id: c.num_samples for c in clients}
+        ids = [ray.get(c.id.remote()) for c in clients]
+        groups = {ray.get(c.id.remote()): ray.get(c.group.remote()) for c in clients}
+        num_samples = {ray.get(c.id.remote()): ray.get(c.num_samples.remote()) for c in clients}
 
         return ids, groups, num_samples
 
