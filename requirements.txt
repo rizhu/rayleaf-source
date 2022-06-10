@@ -7,3 +7,4 @@ ray
 scipy
 torch
 torchvision
+tqdm
