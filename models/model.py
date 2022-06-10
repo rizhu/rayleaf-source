@@ -22,24 +22,10 @@ class Model(nn.Module):
         self.lr = lr
         self.seed = seed
         self.optimizer = optimizer
-
-    def create_model(self):
-        """Creates the model for the task.
-
-        Returns:
-            A 4-tuple consisting of:
-                features: A placeholder for the samples" features.
-                labels: A placeholder for the samples" labels.
-                train_op: A Tensorflow operation that, when run with the features and
-                    the labels, trains the model.
-                eval_metric_ops: A Tensorflow operation that, when run with features and labels,
-                    returns the accuracy of the model.
-        """
-        return None, None, None, None, None
     
     def generate_dataset(self, data: dict) -> Dataset:
         """
-        Generate PyTorch Dataset object from data dicts
+        Generate PyTorch Dataset object from data dicts.
         """
         return None
 

@@ -1,26 +1,23 @@
-import numpy as np
-from tqdm import tqdm
-
-import torch
-
 from collections import (
     OrderedDict
 )
 
-"""
-   TODO: Clients are able to learn but server isn"t learning for some reason.
-   Try removing the get/set_params wrappers idk
-   or maybe you just came up with something at the gym lmao
-"""
+import numpy as np
+import ray
+import torch
 
 class Server:
     
-    def __init__(self, model_params: OrderedDict) -> None:
+    def __init__(self, model_params: OrderedDict, client_managers: list) -> None:
         self.model_params = model_params
-        self.selected_clients = []
-        self.updates = []
 
-    def select_clients(self, my_round: int, possible_clients: list, num_clients: int = 20) -> list:
+        self.client_managers = client_managers
+        self.num_client_managers = len(client_managers)
+
+        self.updates = []
+        self.selected_clients = [[] for _ in range(self.num_client_managers)]
+
+    def select_clients(self, my_round: int, possible_clients: list, num_clients: int = 20) -> None:
         """Selects num_clients clients randomly from possible_clients.
         
         Note that within function, num_clients is set to
@@ -32,13 +29,13 @@ class Server:
         Return:
             list of (num_train_samples, num_test_samples)
         """
-        num_clients = min(num_clients, len(possible_clients))
-        np.random.seed(my_round)
-        self.selected_clients = np.random.choice(possible_clients, num_clients, replace=False)
+        selected_clients = np.random.choice(possible_clients, num_clients, replace=False)
+        self.selected_clients = [[] for _ in range(self.num_client_managers)]
 
-        return [(c.num_train_samples, c.num_test_samples) for c in self.selected_clients]   
+        for client_num in selected_clients:
+            self.selected_clients[client_num % self.num_client_managers].append(client_num)
 
-    def train_model(self, num_epochs: int = 1, batch_size: int = 10, clients=None) -> None:
+    def train_model(self, num_epochs: int = 1, batch_size: int = 10) -> None:
         """Trains self.model_params on given clients.
         
         Trains model on self.selected_clients if clients=None;
@@ -57,14 +54,25 @@ class Server:
             bytes_read: number of bytes read by each client from server
                 dictionary with client ids as keys and integer values.
         """
-        if clients is None:
-            clients = self.selected_clients
+        training_futures = []
+        for client_manager_idx, manager_clients in enumerate(self.selected_clients):
+            if len(manager_clients) > 0:
+                training_future = self.client_managers[client_manager_idx].train_clients.remote(
+                    model_params=self.model_params,
+                    selected_clients=manager_clients,
+                    num_epochs=num_epochs,
+                    batch_size=batch_size
+                )
+                training_futures.append(training_future)
         
-        for client in tqdm(clients, desc="Training clients", leave=False):
-            client.model.load_state_dict(self.model_params)
-            num_samples, update = client.train(num_epochs, batch_size)
+        while len(training_futures) > 0:
+            complete, incomplete = ray.wait(training_futures)
 
-            self.updates.append((num_samples, update))
+            for result in ray.get(complete):
+                self.updates.extend(result)
+
+            training_futures = incomplete
+
 
     @torch.no_grad()
     def update_model(self) -> None:
@@ -85,7 +93,7 @@ class Server:
         self.model_params = new_model
         self.updates = []
 
-    def test_model(self, clients_to_test: list, set_to_use: str = "test") -> dict:
+    def eval_model(self, eval_all_clients: bool = True, set_to_use: str = "test", batch_size: int = 10) -> dict:
         """Tests self.model_params on given clients.
 
         Tests model on self.selected_clients if clients_to_test=None.
@@ -96,17 +104,36 @@ class Server:
         """
         metrics = {}
 
-        if clients_to_test is None:
-            clients_to_test = self.selected_clients
+        eval_futures = []
+        if eval_all_clients:
+            for client_manager in self.client_managers:
+                eval_future = client_manager.eval_model.remote(
+                    model_params=self.model_params,
+                    set_to_use=set_to_use
+                )
+                eval_futures.append(eval_future)
+        else:
+            for client_manager_idx, manager_clients in enumerate(self.selected_clients):
+                if len(manager_clients) > 0:
+                    eval_future = self.client_managers[client_manager_idx].eval_model.remote(
+                        model_params=self.model_params,
+                        set_to_use=set_to_use,
+                        selected_clients=manager_clients,
+                        batch_size=batch_size
+                    )
+                    eval_futures.append(eval_future)
 
-        for client in tqdm(clients_to_test, desc=f"Evaluating on {set_to_use} set", leave=False):
-            client.model.load_state_dict(self.model_params)
-            c_metrics = client.test(set_to_use)
-            metrics[client.id] = c_metrics
+        while len(eval_futures) > 0:
+            complete, incomplete = ray.wait(eval_futures)
+
+            for manager_metrics in ray.get(complete):
+                metrics.update(manager_metrics)
+
+            eval_futures = incomplete
         
         return metrics
 
-    def get_clients_info(self, clients: list = None) -> tuple:
+    def get_clients_info(self) -> tuple:
         """Returns the ids, hierarchies and num_samples for the given clients.
 
         Returns info about self.selected_clients if clients=None;
@@ -114,14 +141,26 @@ class Server:
         Args:
             clients: list of Client objects.
         """
-        if clients is None:
-            clients = self.selected_clients
+        info_futures = []
+        for client_manager in self.client_managers:
+            info_future = client_manager.get_clients_info.remote()
+            info_futures.append(info_future)
 
-        ids = [c.id for c in clients]
-        groups = {c.id: c.group for c in clients}
-        num_samples = {c.id: c.num_samples for c in clients}
+        ids = []
+        groups = {}
+        num_samples = {}
+        while len(info_futures) > 0:
+            complete, incomplete = ray.wait(info_futures)
 
+            for future_ids, future_groups, future_num_samples in ray.get(complete):
+                ids.extend(future_ids)
+                groups.update(future_groups)
+                num_samples.update(future_num_samples)
+
+            info_futures = incomplete
+        
         return ids, groups, num_samples
+
 
     def save_model(self, path: str) -> None:
         """Saves the server model on checkpoints/dataset/model.ckpt."""

@@ -1,16 +1,21 @@
 """Script to run the baselines."""
+from datetime import (
+    datetime
+)
 import importlib
 import logging
 import os
 import random
+from matplotlib import dviread
 
-import torch
 import numpy as np
+import ray
+import torch
 
 import metrics.writer as metrics_writer
 
 from baseline_constants import MAIN_PARAMS, MODEL_SETTINGS
-from client import Client
+from client_manager import ClientManager
 from server import Server
 
 from utils.args import parse_args
@@ -19,16 +24,19 @@ from utils.model_utils import read_data
 STAT_METRICS_PATH = "metrics/stat_metrics.csv"
 SYS_METRICS_PATH = "metrics/sys_metrics.csv"
 
+SECTION_STR = "\n############################## {} ##############################"
+
 logger = logging.getLogger("MAIN")
 
 def main():
+    start_time = datetime.now()
+    ray.init()
 
     args = parse_args()
 
     # Set the random seed if provided (affects client sampling, and batching)
     random.seed(args.seed)
     np.random.seed(args.seed)
-    # tf.set_random_seed(123 + args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
@@ -37,7 +45,7 @@ def main():
         print("Please specify a valid dataset and a valid model.")
     model_path = f"{args.dataset}.{args.model}"
     
-    print(f"############################## {model_path} ##############################")
+    print(SECTION_STR.format(model_path))
     mod = importlib.import_module(model_path)
     ClientModel = getattr(mod, "ClientModel")
 
@@ -55,23 +63,26 @@ def main():
 
     # Get cpu or gpu device for training.
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using {device} device")
+
+    num_client_managers = torch.cuda.device_count()
+    print(f"Spawning {num_client_managers} Client Managers using {device} device")
+    client_managers = setup_client_managers(num_client_managers, seed=args.seed, device=device)
 
     # Create client model, and share params with server model
     client_model = ClientModel(*model_settings)
 
     # Create server
-    server = Server(model_params=client_model.state_dict())
+    server = Server(model_params=client_model.state_dict(), client_managers=client_managers)
 
     # Create clients
     clients = setup_clients(
+        client_managers=client_managers,
         dataset=args.dataset,
         model=ClientModel,
         model_settings=model_settings,
-        use_val_set=args.use_val_set,
-        device=device
+        use_val_set=args.use_val_set
     )
-    client_ids, client_groups, client_num_samples = server.get_clients_info(clients)
+    client_ids, client_groups, client_num_samples = server.get_clients_info()
     print(f"Clients in Total: {len(clients)}")
 
     # Initial status
@@ -97,6 +108,10 @@ def main():
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
             print_stats(i + 1, server, clients, client_num_samples, args, stat_writer_fn, args.use_val_set)
     
+    end_time = datetime.now()
+
+    print(SECTION_STR.format("Post-Simulation"))
+    print(f"Total Simulation time: {end_time - start_time}")
     # Save server model
     ckpt_path = os.path.join("checkpoints", args.dataset)
     if not os.path.exists(ckpt_path):
@@ -108,28 +123,64 @@ def online(clients: list) -> list:
     """We assume all users are always online."""
     return clients
 
+def setup_client_managers(num_client_managers: int, seed: float, device: str = "cpu"):
+    if num_client_managers < 1:
+        return [ClientManager.remote(id=0)]
 
-def create_clients(users: list, groups: list, train_data: dict, eval_data: dict, 
-    model: type, model_settings: tuple, device: str = "cpu") -> list:
+    client_managers = []
+    
+    for id in range(num_client_managers):
+        client_managers.append(ClientManager.remote(id=id, seed=seed, device=device))
+    
+    return client_managers
+
+def create_clients(
+    client_managers: list,
+    users: list,
+    groups: list,
+    train_data: dict,
+    eval_data: dict, 
+    model: type,
+    model_settings: tuple
+) -> list:
     if len(groups) == 0:
         groups = [[] for _ in users]
 
-    clients = [
-        Client(
+    num_client_managers = len(client_managers)
+
+    client_creation_futures = []
+    for client_num, (u, g) in enumerate(zip(users, groups)):
+        future = client_managers[client_num % num_client_managers].add_client.remote(
+            client_num=client_num,
             client_id=u,
             train_data=train_data[u],
             eval_data=eval_data[u],
             model=model,
             model_settings=model_settings,
-            group=g,
-            device=device
-        ) for u, g in zip(users, groups)
-    ]
+            group=g
+        )
+        client_creation_futures.append(future)
+    
+    clients = []
+    while len(client_creation_futures) > 0:
+        complete, incomplete = ray.wait(client_creation_futures)
+
+        for client_num in ray.get(complete):
+            clients.append(client_num)
+        client_creation_futures = incomplete
+    
+    clients.sort()
 
     return clients
 
 
-def setup_clients(dataset: str, model: type, model_settings: tuple, use_val_set: bool = False, device: str = "cpu") -> list:
+def setup_clients(
+    client_managers: list,
+    dataset: str,
+    model: type,
+    model_settings: tuple,
+    use_val_set: bool = False
+) -> list:
     """Instantiates clients based on given train and test data directories.
 
     Return:
@@ -142,13 +193,13 @@ def setup_clients(dataset: str, model: type, model_settings: tuple, use_val_set:
     users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
     clients = create_clients(
+        client_managers=client_managers,
         users=users,
         groups=groups,
         train_data=train_data,
         eval_data=test_data,
         model=model,
-        model_settings=model_settings,
-        device=device
+        model_settings=model_settings
     )
 
     return clients
@@ -175,12 +226,12 @@ def get_sys_writer_function(args):
 def print_stats(
     num_round, server, clients, num_samples, args, writer, use_val_set):
     
-    train_stat_metrics = server.test_model(clients, set_to_use="train")
+    train_stat_metrics = server.eval_model(set_to_use="train")
     print_metrics(train_stat_metrics, num_samples, prefix="train_")
     writer(num_round, train_stat_metrics, "train")
 
     eval_set = "test" if not use_val_set else "val"
-    test_stat_metrics = server.test_model(clients, set_to_use=eval_set)
+    test_stat_metrics = server.eval_model(set_to_use=eval_set)
     print_metrics(test_stat_metrics, num_samples, prefix="{}_".format(eval_set))
     writer(num_round, test_stat_metrics, eval_set)
 
