@@ -57,7 +57,7 @@ class ClientManager:
         updates = []
 
         for client in clients_to_train:
-            client.set_params(model_params)
+            client.model_params = model_params
             num_samples, update = client.train(num_epochs, batch_size)
 
             updates.append((num_samples, update))
@@ -83,7 +83,7 @@ class ClientManager:
         metrics = {}
 
         for client in clients_to_eval:
-            client.set_params(model_params)
+            client.model_params = model_params
             c_metrics = client.test(set_to_use, batch_size)
             metrics[client.id] = c_metrics
         

@@ -66,20 +66,10 @@ class Client:
         eval_metrics = self.model.test(data, batch_size, self.device)
         return eval_metrics
 
-    def set_params(self, params: OrderedDict) -> None:
-        """
-        Setter for this Client's model parameters.
-
-        Args:
-            params: OrderedDict - New parameters to assign to this Client.
-        """
-        self.model.load_state_dict(params)
-
-    def get_params(self) -> OrderedDict:
-        """
-        Getter for this Client's model parameters.
-
-        Return:
-            OrderedDict - This Client's model parameters.
-        """
+    @property
+    def model_params(self) -> OrderedDict:
         return self.model.state_dict()
+
+    @model_params.setter
+    def model_params(self, params: OrderedDict) -> None:
+        self.model.load_state_dict(params)
