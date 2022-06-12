@@ -3,9 +3,12 @@
 import numpy as np
 import os
 import pandas as pd
+from pathlib import (
+    Path
+)
 import sys
 
-models_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+models_dir = Path().resolve().parent    # os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(models_dir)
 
 from baseline_constants import CLIENT_ID_KEY, NUM_ROUND_KEY, NUM_SAMPLES_KEY
@@ -47,8 +50,9 @@ def print_metrics(
         metrics_dir: String. Directory for the metrics file. May not exist.
         metrics_name: String. Filename for the metrics file. May not exist.
     """
-    os.makedirs(metrics_dir, exist_ok=True)
-    path = os.path.join(metrics_dir, '{}.csv'.format(metrics_name))
+    # os.makedirs(metrics_dir, exist_ok=True)
+    metrics_dir.mkdir(exist_ok=True)
+    path = Path(metrics_dir, f"{metrics_name}.csv") # os.path.join(metrics_dir, '{}.csv'.format(metrics_name))
     
     columns = COLUMN_NAMES + get_metrics_names(metrics)
     client_data = pd.DataFrame(columns=columns)
