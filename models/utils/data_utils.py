@@ -3,7 +3,6 @@ from collections import (
 )
 import json
 import numpy as np
-import os
 from pathlib import (
     Path
 )
@@ -36,11 +35,9 @@ def read_dir(data_dir: Path):
     groups = []
     data = defaultdict(lambda : None)
 
-    files = os.listdir(data_dir)
-    files = [f for f in files if f.endswith('.json')]
+    files = [f for f in data_dir.iterdir() if f.is_file() and f.suffix == ".json"]
     for f in files:
-        file_path = Path(data_dir,f)
-        with open(file_path, 'r') as inf:
+        with open(f, 'r') as inf:
             cdata = json.load(inf)
         clients.extend(cdata['users'])
         if 'hierarchies' in cdata:
