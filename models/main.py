@@ -99,10 +99,10 @@ def main():
         server.select_clients(i, online(clients), num_clients=clients_per_round)
 
         # Simulate server model training on selected clients" data
-        server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size)
+        server.train_clients(num_epochs=args.num_epochs, batch_size=args.batch_size)
         
         # Update server model
-        server.update_model()
+        server._update_model()
 
         # Test model
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:

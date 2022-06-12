@@ -24,7 +24,7 @@ class Server:
         for client_num in selected_clients:
             self.selected_clients[client_num % self.num_client_managers].append(client_num)
 
-    def train_model(self, num_epochs: int = 1, batch_size: int = 10) -> None:
+    def train_clients(self, num_epochs: int = 1, batch_size: int = 10) -> None:
         training_futures = []
         for client_manager_idx, manager_clients in enumerate(self.selected_clients):
             if len(manager_clients) > 0:
@@ -44,25 +44,31 @@ class Server:
 
             training_futures = incomplete
 
-
-    @torch.no_grad()
     def update_model(self) -> None:
-        new_model = OrderedDict()
-        for param_tensor in self.model_params.keys():
-            new_model[param_tensor] = 0
+        self.reset_model()
 
         total_weight = 0
         for (client_samples, client_model) in self.updates:
             total_weight += client_samples
 
             for param_tensor, layer in client_model.items():
-                new_model[param_tensor] += client_samples * layer
+                self.model_params[param_tensor] += client_samples * layer
 
-        for param_tensor in new_model.keys():
-            new_model[param_tensor] /= total_weight
+        for param_tensor in self.model_params.keys():
+            self.model_params[param_tensor] /= total_weight
 
-        self.model_params = new_model
-        self.updates = []
+    @torch.no_grad()
+    def _update_model(self) -> None:
+        self.update_model()
+
+        self.updates.clear()
+
+    def reset_model(self) -> None:
+        new_model_params = OrderedDict()
+        for param_tensor in self.model_params.keys():
+            new_model_params[param_tensor] = 0
+        
+        self.model_params = new_model_params
 
     def eval_model(self, eval_all_clients: bool = True, set_to_use: str = "test", batch_size: int = 10) -> dict:
         metrics = {}
@@ -117,6 +123,13 @@ class Server:
         
         return ids, groups, num_samples
 
-
     def save_model(self, path: str) -> None:
         torch.save({"model_params": self.model_params}, path)
+
+    @property
+    def model_params(self) -> OrderedDict:
+        return self._model_params
+    
+    @model_params.setter
+    def model_params(self, params: OrderedDict) -> None:
+        self._model_params = params
