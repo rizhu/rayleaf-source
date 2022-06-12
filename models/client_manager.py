@@ -40,7 +40,7 @@ class ClientManager:
             device=self.device
         )
 
-        return client_num
+        return client_num, ClientType
 
     
     def train_clients(

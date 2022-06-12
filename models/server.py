@@ -19,11 +19,13 @@ class Server:
 
 
     def select_clients(self, my_round: int, possible_clients: list, num_clients: int = 20) -> None:
-        selected_clients = np.random.choice(possible_clients, num_clients, replace=False)
+        selected_client_nums = np.random.choice(possible_clients, num_clients, replace=False)
         self.selected_clients = [[] for _ in range(self.num_client_managers)]
 
-        for client_num in selected_clients:
+        for client_num in selected_client_nums:
             self.selected_clients[client_num % self.num_client_managers].append(client_num)
+        
+        return selected_client_nums
 
 
     def train_clients(self, num_epochs: int = 1, batch_size: int = 10) -> None:

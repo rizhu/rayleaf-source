@@ -1,4 +1,3 @@
-"""Script to run the baselines."""
 from datetime import (
     datetime
 )
@@ -30,13 +29,14 @@ SECTION_STR = "\n############################## {} #############################
 
 logger = logging.getLogger("MAIN")
 
-def main(
+
+def run_experiment(
     dataset: str,
     model: str,
     num_rounds: int,
     eval_every: int,
     ServerType: type,
-    clients: list,
+    client_types: list,
     clients_per_round: int,
     client_lr: float,
     batch_size: int = 10,
@@ -89,8 +89,8 @@ def main(
     server = ServerType(model_params=client_model.state_dict(), client_managers=client_managers)
 
     # Create clients
-    client_nums = setup_clients(
-        clients=clients,
+    clients = setup_clients(
+        clients=client_types,
         client_managers=client_managers,
         dataset=dataset,
         model=ClientModel,
@@ -98,7 +98,8 @@ def main(
         use_val_set=use_val_set
     )
     client_ids, client_groups, client_num_samples = server.get_clients_info()
-    print(f"Clients in Total: {len(client_nums)}")
+    client_counts = count_selected_clients(online(clients), clients)
+    print(f"{len(clients)} total clients: {client_counts_string(client_counts)}")
 
     # Initial status
     print("--- Random Initialization ---")
@@ -108,10 +109,10 @@ def main(
 
     # Simulate training
     for i in range(num_rounds):
-        print(f"--- Round {i + 1} of {num_rounds}: Training {clients_per_round} Clients ---")
-
         # Select clients to train this round
-        server.select_clients(i, online(client_nums), num_clients=clients_per_round)
+        selected_clients = server.select_clients(i, online(clients), num_clients=clients_per_round)
+        selected_client_counts = count_selected_clients(selected_clients, clients)
+        print(f"--- Round {i + 1} of {num_rounds}: Training {clients_per_round} clients: {client_counts_string(selected_client_counts)} ---")
 
         # Simulate server model training on selected clients" data
         server.train_clients(num_epochs=num_epochs, batch_size=batch_size)
@@ -135,9 +136,9 @@ def main(
     print(f"Model saved in path: {save_path}")
 
 
-def online(client_nums: list) -> list:
+def online(clients: list) -> list:
     """We assume all users are always online."""
-    return client_nums
+    return sorted(clients.keys())
 
 
 def setup_client_managers(num_client_managers: int, seed: float, device: str = "cpu"):
@@ -151,14 +152,17 @@ def setup_client_managers(num_client_managers: int, seed: float, device: str = "
     
     return client_managers
 
+
 def verify_server_input(ServerType: type):
     assert isinstance(ServerType, type), f"ServerType {ServerType} is not a class."
     assert issubclass(ServerType, Server), f"ServerType {ServerType} is not a subclass of Server."
+
 
 def verify_clients_input(clients: list, max_num_clients: int, dataset: str):
     prompt = "Each element in clients list must be a length-2 tuple of the form (Client subclass: type, count: int)."
     total = 0
 
+    num_clients = len(clients)
     for idx, pair in enumerate(clients):
 
         assert len(pair) == 2, f"{prompt} Got {pair} at index {idx} of clients list."
@@ -167,11 +171,19 @@ def verify_clients_input(clients: list, max_num_clients: int, dataset: str):
         assert issubclass(pair[0], Client), f"{prompt} First element at index {idx} of clients list is not a subclass of Client."
 
         assert isinstance(pair[1], int), f"{prompt} Second element at index {idx} or clients list has type {type(pair[1])}."
-        assert pair[1] > 0, f"Each Client count must be greater than 0. Got count of {pair[1]} at index {idx} of clients list."
+
+        if idx < num_clients - 1:
+            assert pair[1] > 0, f"Each Client count except for last one must be greater than 0. Got count of {pair[1]} at index {idx} of clients list."
+        else:
+            assert pair[1] == -1 or pair[1] > 0, f"Last Client count must be greater than 0 or be -1. Got count of {pair[1]} at index {idx} of clients list."
+            if pair[1] == -1:
+                new_pair = (pair[0], max_num_clients - total)
+                clients[idx] = new_pair
         
         total += pair[1]
     
     assert total <= max_num_clients, f"Max number of clients for {dataset} dataset is {max_num_clients} but clients list defines {total} clients."
+
 
 def create_clients(
     clients: list,
@@ -210,15 +222,13 @@ def create_clients(
 
             client_num += 1
     
-    clients = []
+    clients = {}
     while len(client_creation_futures) > 0:
         complete, incomplete = ray.wait(client_creation_futures)
 
-        for client_num in ray.get(complete):
-            clients.append(client_num)
+        for client_num, ClientType in ray.get(complete):
+            clients[client_num] = ClientType
         client_creation_futures = incomplete
-    
-    clients.sort()
 
     return clients
 
@@ -256,6 +266,51 @@ def setup_clients(
 
     return clients
 
+
+def count_selected_clients(selected_clients: list, clients: dict) -> dict:
+    counts = {}
+    for client_num in selected_clients:
+        client_type = clients[client_num]
+        counts[client_type] = counts.get(client_type, 0) + 1
+
+    return counts
+
+
+def client_counts_string(counts: dict) -> str:
+    client_types = list(counts.keys())
+    client_types.sort(key=lambda ClientType: ClientType.__name__)
+
+    counts_str = ""
+    count_format = "{count} {client_type_name}"
+
+    if len(client_types) == 1:
+        counts_str += count_format.format(count=counts[client_types[0]], client_type_name=client_types[0].__name__)
+        if counts[client_types[0]] != 1:
+            counts_str += "s"
+    elif len(client_types) == 2:
+        counts_str += count_format.format(count=counts[client_types[0]], client_type_name=client_types[0].__name__)
+        if counts[client_types[0]] != 1:
+            counts_str += "s"
+
+        counts_str += " and "
+
+        counts_str += count_format.format(count=counts[client_types[1]], client_type_name=client_types[1].__name__)
+        if counts[client_types[1]] != 1:
+            counts_str += "s"
+    else:
+        for client_type in client_types[:-1]:
+            counts_str += count_format.format(count=counts[client_type], client_type_name=client_type.__name__)
+            if counts[client_type] != 1:
+                counts_str += "s"
+            counts_str += ", "
+        
+        counts_str += "and "
+        counts_str += count_format.format(count=counts[client_types[-1]], client_type_name=client_types[-1].__name__)
+        if counts[client_types[-1]] != 1:
+            counts_str += "s"
+    
+    return counts_str
+        
 
 def get_stat_writer_function(ids, groups, num_samples, metrics_name: str, metrics_dir: str):
 
