@@ -30,6 +30,7 @@ from utils.data_utils import (
     read_data
 )
 
+CWD = Path().resolve()
 STAT_METRICS_PATH = Path("metrics", "stat_metrics.csv")
 SYS_METRICS_PATH = Path("metrics", "sys_metrics.csv")
 
@@ -324,7 +325,7 @@ def get_stat_writer_function(ids, groups, num_samples, metrics_name: str, metric
 
     def writer_fn(num_round, metrics, partition):
         metrics_writer.print_metrics(
-            num_round, ids, metrics, groups, num_samples, partition, metrics_dir, "{}_{}".format(metrics_name, "stat"))
+            num_round, ids, metrics, groups, num_samples, partition, Path(CWD, metrics_dir), "{}_{}".format(metrics_name, "stat"))
 
     return writer_fn
 
@@ -333,7 +334,7 @@ def get_sys_writer_function(metrics_name: str, metrics_dir: str):
 
     def writer_fn(num_round, ids, metrics, groups, num_samples):
         metrics_writer.print_metrics(
-            num_round, ids, metrics, groups, num_samples, "train", metrics_dir, "{}_{}".format(metrics_name, "sys"))
+            num_round, ids, metrics, groups, num_samples, "train", Path(CWD, metrics_dir), "{}_{}".format(metrics_name, "sys"))
 
     return writer_fn
 
