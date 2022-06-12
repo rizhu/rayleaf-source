@@ -21,6 +21,7 @@ class ClientManager:
         self.device = device
         self.clients = {}
 
+
     def add_client(
         self,
         client_num: int,
@@ -43,6 +44,7 @@ class ClientManager:
         )
 
         return client_num
+
     
     def train_clients(
         self,
@@ -64,6 +66,7 @@ class ClientManager:
         
         return updates
 
+
     def eval_model(
         self,
         model_params: OrderedDict,
@@ -82,6 +85,7 @@ class ClientManager:
         
         return metrics
 
+
     def get_clients_info(self, client_nums: list = None) -> tuple:
         clients = self.get_clients_from_client_nums(client_nums)
 
@@ -95,6 +99,7 @@ class ClientManager:
 
         return ids, groups, num_samples
 
+
     def get_clients_from_client_nums(self, client_nums: list) -> list:
         if client_nums is None:
             return list(self.clients.values())
@@ -105,6 +110,7 @@ class ClientManager:
             clients.append(self.clients[client_num])
 
         return clients
+
 
     def set_seeds(self, seed: float = 0):
         random.seed(seed)

@@ -22,9 +22,11 @@ class Model(nn.Module):
         self.lr = lr
         self.seed = seed
         self.optimizer = optimizer
-    
+
+
     def generate_dataset(self, data: dict) -> Dataset:
         return None
+
 
     def train_model(self, data: Dataset, num_epochs: int = 1, batch_size: int = 10, device: str = "cpu") -> None:
         train_dataloader = DataLoader(data, batch_size=batch_size, shuffle=False)
@@ -32,6 +34,7 @@ class Model(nn.Module):
         self.train()
         for _ in range(num_epochs):
             self.run_epoch(train_dataloader, device)
+
 
     def run_epoch(self, dataloader: DataLoader, device: str = "cpu") -> None:
 
@@ -44,6 +47,7 @@ class Model(nn.Module):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+
 
     @torch.no_grad()
     def eval_model(self, data: Dataset, batch_size: int = 10, device: str = "cpu") -> dict:

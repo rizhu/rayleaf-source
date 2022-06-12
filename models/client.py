@@ -31,19 +31,23 @@ class Client:
         self._num_eval_samples = len(self.eval_data) if self.eval_data is not None else 0
         self._num_samples = self.num_train_samples + self.num_eval_samples
 
+
     def train(self):
         self.train_model()
 
         return self.num_train_samples, self.model_params
 
+
     def train_model(self):
         self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
+
 
     def _train(self, num_epochs: int = 1, batch_size: int = 10) -> tuple:
         self.num_epochs = num_epochs
         self.batch_size = batch_size
 
         return self.train()
+
 
     def _eval(self, set_to_use: str ="test", batch_size: int = 10) -> dict:
         assert set_to_use in ["train", "test", "val"]
@@ -56,21 +60,26 @@ class Client:
         eval_metrics = self.model.eval_model(data, batch_size, self.device)
         return eval_metrics
 
+
     @property
     def model_params(self) -> OrderedDict:
         return self.model.state_dict()
+
 
     @model_params.setter
     def model_params(self, params: OrderedDict) -> None:
         self.model.load_state_dict(params)
 
+
     @property
     def num_train_samples(self) -> int:
         return self._num_train_samples
-    
+
+
     @property
     def num_eval_samples(self) -> int:
         return self._num_eval_samples
+
     
     @property
     def num_samples(self) -> int:

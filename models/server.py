@@ -17,12 +17,14 @@ class Server:
         self.updates = []
         self.selected_clients = [[] for _ in range(self.num_client_managers)]
 
+
     def select_clients(self, my_round: int, possible_clients: list, num_clients: int = 20) -> None:
         selected_clients = np.random.choice(possible_clients, num_clients, replace=False)
         self.selected_clients = [[] for _ in range(self.num_client_managers)]
 
         for client_num in selected_clients:
             self.selected_clients[client_num % self.num_client_managers].append(client_num)
+
 
     def train_clients(self, num_epochs: int = 1, batch_size: int = 10) -> None:
         training_futures = []
@@ -44,6 +46,7 @@ class Server:
 
             training_futures = incomplete
 
+
     def update_model(self) -> None:
         self.reset_model()
 
@@ -57,11 +60,13 @@ class Server:
         for param_tensor in self.model_params.keys():
             self.model_params[param_tensor] /= total_weight
 
+
     @torch.no_grad()
     def _update_model(self) -> None:
         self.update_model()
 
         self.updates.clear()
+
 
     def reset_model(self) -> None:
         new_model_params = OrderedDict()
@@ -102,6 +107,7 @@ class Server:
         
         return metrics
 
+
     def get_clients_info(self) -> tuple:
         info_futures = []
         for client_manager in self.client_managers:
@@ -123,12 +129,15 @@ class Server:
         
         return ids, groups, num_samples
 
+
     def save_model(self, path: str) -> None:
         torch.save({"model_params": self.model_params}, path)
+
 
     @property
     def model_params(self) -> OrderedDict:
         return self._model_params
+
     
     @model_params.setter
     def model_params(self, params: OrderedDict) -> None:

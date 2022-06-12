@@ -119,9 +119,11 @@ def main():
     save_path = server.save_model(os.path.join(ckpt_path, "{}.ckpt".format(args.model)))
     print(f"Model saved in path: {save_path}")
 
+
 def online(clients: list) -> list:
     """We assume all users are always online."""
     return clients
+
 
 def setup_client_managers(num_client_managers: int, seed: float, device: str = "cpu"):
     if num_client_managers < 1:
@@ -133,6 +135,7 @@ def setup_client_managers(num_client_managers: int, seed: float, device: str = "
         client_managers.append(ClientManager.remote(id=id, seed=seed, device=device))
     
     return client_managers
+
 
 def create_clients(
     client_managers: list,
