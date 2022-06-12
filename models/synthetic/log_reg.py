@@ -1,8 +1,6 @@
 """Bag-of-words logistic regression."""
 
 import numpy as np
-import os
-import sys
 import tensorflow as tf
 
 from model import Model
