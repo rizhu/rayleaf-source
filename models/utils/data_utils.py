@@ -1,7 +1,11 @@
+from collections import (
+    defaultdict
+)
 import json
 import numpy as np
-import os
-from collections import defaultdict
+from pathlib import (
+    Path
+)
 
 
 def batch_data(data, batch_size, seed):
@@ -26,16 +30,14 @@ def batch_data(data, batch_size, seed):
         yield (batched_x, batched_y)
 
 
-def read_dir(data_dir):
+def read_dir(data_dir: Path):
     clients = []
     groups = []
     data = defaultdict(lambda : None)
 
-    files = os.listdir(data_dir)
-    files = [f for f in files if f.endswith('.json')]
+    files = [f for f in data_dir.iterdir() if f.is_file() and f.suffix == ".json"]
     for f in files:
-        file_path = os.path.join(data_dir,f)
-        with open(file_path, 'r') as inf:
+        with open(f, 'r') as inf:
             cdata = json.load(inf)
         clients.extend(cdata['users'])
         if 'hierarchies' in cdata:

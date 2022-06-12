@@ -2,10 +2,10 @@ from datetime import (
     datetime
 )
 import importlib
-import logging
-import os
+from pathlib import (
+    Path
+)
 import random
-from matplotlib import dviread
 
 import numpy as np
 import ray
@@ -13,21 +13,29 @@ import torch
 
 import metrics.writer as metrics_writer
 
-from baseline_constants import MODEL_SETTINGS
-from client import Client
-from client_manager import ClientManager
-from server import Server
+from baseline_constants import (
+    MODEL_SETTINGS
+)
+from client import (
+    Client
+)
+from client_manager import (
+    ClientManager
+)
+from server import (
+    Server
+)
 
-from utils.data_utils import read_data
+from utils.data_utils import (
+    read_data
+)
 
-STAT_METRICS_PATH = "metrics/stat_metrics.csv"
-SYS_METRICS_PATH = "metrics/sys_metrics.csv"
+STAT_METRICS_PATH = Path("metrics", "stat_metrics.csv")
+SYS_METRICS_PATH = Path("metrics", "sys_metrics.csv")
 
 DATASETS = {"sent140", "femnist", "shakespeare", "celeba", "synthetic", "reddit"}
 
 SECTION_STR = "\n############################## {} ##############################"
-
-logger = logging.getLogger("MAIN")
 
 
 def run_experiment(
@@ -60,8 +68,8 @@ def run_experiment(
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
 
-    model_path = f"{dataset}/{model}.py"
-    if not os.path.exists(model_path):
+    model_path = Path(dataset, f"{model}.py")
+    if not model_path.is_file():
         print("Please specify a valid dataset and a valid model.")
     model_path = f"{dataset}.{model}"
     
@@ -129,10 +137,10 @@ def run_experiment(
     print(SECTION_STR.format("Post-Simulation"))
     print(f"Total Simulation time: {end_time - start_time}")
     # Save server model
-    ckpt_path = os.path.join("checkpoints", dataset)
-    if not os.path.exists(ckpt_path):
-        os.makedirs(ckpt_path)
-    save_path = server.save_model(os.path.join(ckpt_path, "{}.ckpt".format(model)))
+    ckpt_path = Path("checkpoints", dataset)
+    if not ckpt_path.is_dir():
+        ckpt_path.mkdir()
+    save_path = server.save_model(Path(ckpt_path, f"{model}.ckpt"))
     print(f"Model saved in path: {save_path}")
 
 
@@ -247,8 +255,8 @@ def setup_clients(
         all_clients: list of Client objects.
     """
     eval_set = "test" if not use_val_set else "val"
-    train_data_dir = os.path.join("..", "data", dataset, "data", "train")
-    test_data_dir = os.path.join("..", "data", dataset, "data", eval_set)
+    train_data_dir = Path(Path("..").resolve(), "data", dataset, "data", "train")
+    test_data_dir = Path(Path("..").resolve(), "data", dataset, "data", eval_set)
 
     users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
     verify_clients_input(clients=clients, max_num_clients=len(users), dataset=dataset)
