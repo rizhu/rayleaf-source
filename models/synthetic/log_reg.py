@@ -6,7 +6,7 @@ import sys
 import tensorflow as tf
 
 from model import Model
-from utils.model_utils import batch_data
+from utils.data_utils import batch_data
 
 
 class ClientModel(Model):

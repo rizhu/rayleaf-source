@@ -18,7 +18,7 @@ from client import Client
 from client_manager import ClientManager
 from server import Server
 
-from utils.model_utils import read_data
+from utils.data_utils import read_data
 
 STAT_METRICS_PATH = "metrics/stat_metrics.csv"
 SYS_METRICS_PATH = "metrics/sys_metrics.csv"
