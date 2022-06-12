@@ -58,7 +58,7 @@ class ClientManager:
 
         for client in clients_to_train:
             client.model_params = model_params
-            num_samples, update = client.train(num_epochs, batch_size)
+            num_samples, update = client._train(num_epochs, batch_size)
 
             updates.append((num_samples, update))
         
@@ -71,20 +71,13 @@ class ClientManager:
         set_to_use: str = "test",
         batch_size: int = 10
     ) -> dict:
-        """
-        Tests self.model_params on given clients.
-        
-        Args:
-            clients_to_test: list of Client objects.
-            set_to_use: dataset to test on. Should be in ["train", "test"].
-        """
         clients_to_eval = self.get_clients_from_client_nums(selected_clients)
 
         metrics = {}
 
         for client in clients_to_eval:
             client.model_params = model_params
-            c_metrics = client.test(set_to_use, batch_size)
+            c_metrics = client._eval(set_to_use, batch_size)
             metrics[client.id] = c_metrics
         
         return metrics

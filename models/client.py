@@ -27,35 +27,25 @@ class Client:
         self.train_data = self.model.generate_dataset(train_data)
         self.eval_data = self.model.generate_dataset(eval_data)
 
-        self.num_train_samples = len(self.train_data) if self.train_data is not None else 0
-        self.num_eval_samples = len(self.eval_data) if self.eval_data is not None else 0
-        self.num_samples = self.num_train_samples + self.num_eval_samples
+        self._num_train_samples = len(self.train_data) if self.train_data is not None else 0
+        self._num_eval_samples = len(self.eval_data) if self.eval_data is not None else 0
+        self._num_samples = self.num_train_samples + self.num_eval_samples
 
-    def train(self, num_epochs: int = 1, batch_size: int = 10) -> tuple:
-        """
-        Trains on self.model using the Client's train_data.
+    def train(self):
+        self.train_model()
 
-        Args:
-            num_epochs: int - Number of epochs to train.
-            batch_size: int - Size of training batches.
-        Return:
-            int - Number of samples used in training
-            OrderedDict - This Client's weights after training.
-        """
-        update = self.model.train_model(self.train_data, num_epochs, batch_size, self.device)
+        return self.num_train_samples, self.model_params
 
-        return self.num_train_samples, update
+    def train_model(self):
+        self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
 
-    def test(self, set_to_use: str ="test", batch_size: int = 10) -> dict:
-        """
-        Tests self.model on self.test_data.
-        
-        Args:
-            set_to_use: str - Set to test on. Should be in ["train", "test"].
-        Return:
-            str - This Client's id.
-            dict - Evaluation results.
-        """
+    def _train(self, num_epochs: int = 1, batch_size: int = 10) -> tuple:
+        self.num_epochs = num_epochs
+        self.batch_size = batch_size
+
+        return self.train()
+
+    def _eval(self, set_to_use: str ="test", batch_size: int = 10) -> dict:
         assert set_to_use in ["train", "test", "val"]
 
         if set_to_use == "train":
@@ -63,7 +53,7 @@ class Client:
         elif set_to_use == "test" or set_to_use == "val":
             data = self.eval_data
 
-        eval_metrics = self.model.test(data, batch_size, self.device)
+        eval_metrics = self.model.eval_model(data, batch_size, self.device)
         return eval_metrics
 
     @property
@@ -73,3 +63,15 @@ class Client:
     @model_params.setter
     def model_params(self, params: OrderedDict) -> None:
         self.model.load_state_dict(params)
+
+    @property
+    def num_train_samples(self) -> int:
+        return self._num_train_samples
+    
+    @property
+    def num_eval_samples(self) -> int:
+        return self._num_eval_samples
+    
+    @property
+    def num_samples(self) -> int:
+        return self._num_samples

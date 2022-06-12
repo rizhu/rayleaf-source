@@ -24,31 +24,14 @@ class Model(nn.Module):
         self.optimizer = optimizer
     
     def generate_dataset(self, data: dict) -> Dataset:
-        """
-        Generate PyTorch Dataset object from data dicts.
-        """
         return None
 
-    def train_model(self, data: Dataset, num_epochs: int = 1, batch_size: int = 10, device: str = "cpu") -> OrderedDict:
-        """
-        Trains the client model.
-
-        Args:
-            data: Dict of the form {"x": [list], "y": [list]}.
-            num_epochs: Number of epochs to train.
-            batch_size: Size of training batches.
-        Return:
-            update: List of np.ndarray weights, with each weight array
-                corresponding to a variable in the resulting graph
-        """
+    def train_model(self, data: Dataset, num_epochs: int = 1, batch_size: int = 10, device: str = "cpu") -> None:
         train_dataloader = DataLoader(data, batch_size=batch_size, shuffle=False)
 
         self.train()
         for _ in range(num_epochs):
             self.run_epoch(train_dataloader, device)
-
-        update = self.state_dict()
-        return update
 
     def run_epoch(self, dataloader: DataLoader, device: str = "cpu") -> None:
 
@@ -63,15 +46,7 @@ class Model(nn.Module):
             self.optimizer.step()
 
     @torch.no_grad()
-    def test(self, data: Dataset, batch_size: int = 10, device: str = "cpu") -> dict:
-        """
-        Tests the current model on the given data.
-
-        Args:
-            data: dict of the form {"x": [list], "y": [list]}
-        Return:
-            dict of metrics that will be recorded by the simulation.
-        """
+    def eval_model(self, data: Dataset, batch_size: int = 10, device: str = "cpu") -> dict:
         test_dataloader = DataLoader(data, batch_size=batch_size, shuffle=False)
         size = len(data)
         num_batches = len(test_dataloader)
