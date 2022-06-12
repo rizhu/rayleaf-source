@@ -7,10 +7,6 @@ import numpy as np
 import ray
 import torch
 
-from client import (
-    Client
-)
-
 @ray.remote(num_gpus=1 if torch.cuda.device_count() > 0 else 0)
 class ClientManager:
     def __init__(self, id: int, seed: float, device: str = "cpu"):
@@ -24,6 +20,7 @@ class ClientManager:
 
     def add_client(
         self,
+        ClientType: type,
         client_num: int,
         client_id: str,
         train_data: dict,
@@ -32,7 +29,7 @@ class ClientManager:
         model_settings: tuple,
         group: list = None
     ) -> None:
-        self.clients[client_num] = Client(
+        self.clients[client_num] = ClientType(
             client_num,
             client_id,
             train_data,

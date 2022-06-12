@@ -14,7 +14,8 @@ import torch
 
 import metrics.writer as metrics_writer
 
-from baseline_constants import MAIN_PARAMS, MODEL_SETTINGS
+from baseline_constants import MODEL_SETTINGS
+from client import Client
 from client_manager import ClientManager
 from server import Server
 
@@ -23,7 +24,7 @@ from utils.model_utils import read_data
 STAT_METRICS_PATH = "metrics/stat_metrics.csv"
 SYS_METRICS_PATH = "metrics/sys_metrics.csv"
 
-DATASETS = ['sent140', 'femnist', 'shakespeare', 'celeba', 'synthetic', 'reddit']
+DATASETS = {"sent140", "femnist", "shakespeare", "celeba", "synthetic", "reddit"}
 
 SECTION_STR = "\n############################## {} ##############################"
 
@@ -34,6 +35,8 @@ def main(
     model: str,
     num_rounds: int,
     eval_every: int,
+    ServerType: type,
+    clients: list,
     clients_per_round: int,
     client_lr: float,
     batch_size: int = 10,
@@ -44,6 +47,11 @@ def main(
     num_epochs: int = 1
 ) -> None:
     start_time = datetime.now()
+
+    assert dataset.lower() in DATASETS, f"Dataset \"{dataset}\" is not a valid dataset. Available datasets are {DATASETS}"
+    dataset = dataset.lower()
+    verify_server_input(ServerType=ServerType)
+
     ray.init()
 
     # Set the random seed if provided (affects client sampling, and batching)
@@ -78,10 +86,11 @@ def main(
     client_model = ClientModel(*model_settings)
 
     # Create server
-    server = Server(model_params=client_model.state_dict(), client_managers=client_managers)
+    server = ServerType(model_params=client_model.state_dict(), client_managers=client_managers)
 
     # Create clients
-    clients = setup_clients(
+    client_nums = setup_clients(
+        clients=clients,
         client_managers=client_managers,
         dataset=dataset,
         model=ClientModel,
@@ -89,7 +98,7 @@ def main(
         use_val_set=use_val_set
     )
     client_ids, client_groups, client_num_samples = server.get_clients_info()
-    print(f"Clients in Total: {len(clients)}")
+    print(f"Clients in Total: {len(client_nums)}")
 
     # Initial status
     print("--- Random Initialization ---")
@@ -102,7 +111,7 @@ def main(
         print(f"--- Round {i + 1} of {num_rounds}: Training {clients_per_round} Clients ---")
 
         # Select clients to train this round
-        server.select_clients(i, online(clients), num_clients=clients_per_round)
+        server.select_clients(i, online(client_nums), num_clients=clients_per_round)
 
         # Simulate server model training on selected clients" data
         server.train_clients(num_epochs=num_epochs, batch_size=batch_size)
@@ -126,9 +135,9 @@ def main(
     print(f"Model saved in path: {save_path}")
 
 
-def online(clients: list) -> list:
+def online(client_nums: list) -> list:
     """We assume all users are always online."""
-    return clients
+    return client_nums
 
 
 def setup_client_managers(num_client_managers: int, seed: float, device: str = "cpu"):
@@ -142,8 +151,30 @@ def setup_client_managers(num_client_managers: int, seed: float, device: str = "
     
     return client_managers
 
+def verify_server_input(ServerType: type):
+    assert isinstance(ServerType, type), f"ServerType {ServerType} is not a class."
+    assert issubclass(ServerType, Server), f"ServerType {ServerType} is not a subclass of Server."
+
+def verify_clients_input(clients: list, max_num_clients: int, dataset: str):
+    prompt = "Each element in clients list must be a length-2 tuple of the form (Client subclass: type, count: int)."
+    total = 0
+
+    for idx, pair in enumerate(clients):
+
+        assert len(pair) == 2, f"{prompt} Got {pair} at index {idx} of clients list."
+
+        assert isinstance(pair[0], type), f"{prompt} First element at index {idx} of clients list has type {type(pair[0])}."
+        assert issubclass(pair[0], Client), f"{prompt} First element at index {idx} of clients list is not a subclass of Client."
+
+        assert isinstance(pair[1], int), f"{prompt} Second element at index {idx} or clients list has type {type(pair[1])}."
+        assert pair[1] > 0, f"Each Client count must be greater than 0. Got count of {pair[1]} at index {idx} of clients list."
+        
+        total += pair[1]
+    
+    assert total <= max_num_clients, f"Max number of clients for {dataset} dataset is {max_num_clients} but clients list defines {total} clients."
 
 def create_clients(
+    clients: list,
     client_managers: list,
     users: list,
     groups: list,
@@ -158,17 +189,26 @@ def create_clients(
     num_client_managers = len(client_managers)
 
     client_creation_futures = []
-    for client_num, (u, g) in enumerate(zip(users, groups)):
-        future = client_managers[client_num % num_client_managers].add_client.remote(
-            client_num=client_num,
-            client_id=u,
-            train_data=train_data[u],
-            eval_data=eval_data[u],
-            model=model,
-            model_settings=model_settings,
-            group=g
-        )
-        client_creation_futures.append(future)
+
+    user_group_pairs = zip(users, groups)
+    client_num = 0
+
+    for ClientType, count in clients:
+        for _ in range(count):
+            u, g = next(user_group_pairs)
+            future = client_managers[client_num % num_client_managers].add_client.remote(
+                ClientType=ClientType,
+                client_num=client_num,
+                client_id=u,
+                train_data=train_data[u],
+                eval_data=eval_data[u],
+                model=model,
+                model_settings=model_settings,
+                group=g
+            )
+            client_creation_futures.append(future)
+
+            client_num += 1
     
     clients = []
     while len(client_creation_futures) > 0:
@@ -184,6 +224,7 @@ def create_clients(
 
 
 def setup_clients(
+    clients: list,
     client_managers: list,
     dataset: str,
     model: type,
@@ -200,8 +241,10 @@ def setup_clients(
     test_data_dir = os.path.join("..", "data", dataset, "data", eval_set)
 
     users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
+    verify_clients_input(clients=clients, max_num_clients=len(users), dataset=dataset)
 
     clients = create_clients(
+        clients=clients,
         client_managers=client_managers,
         users=users,
         groups=groups,
