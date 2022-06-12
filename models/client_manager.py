@@ -7,10 +7,6 @@ import numpy as np
 import ray
 import torch
 
-from client import (
-    Client
-)
-
 @ray.remote(num_gpus=1 if torch.cuda.device_count() > 0 else 0)
 class ClientManager:
     def __init__(self, id: int, seed: float, device: str = "cpu"):
@@ -21,8 +17,10 @@ class ClientManager:
         self.device = device
         self.clients = {}
 
+
     def add_client(
         self,
+        ClientType: type,
         client_num: int,
         client_id: str,
         train_data: dict,
@@ -31,7 +29,7 @@ class ClientManager:
         model_settings: tuple,
         group: list = None
     ) -> None:
-        self.clients[client_num] = Client(
+        self.clients[client_num] = ClientType(
             client_num,
             client_id,
             train_data,
@@ -42,7 +40,8 @@ class ClientManager:
             device=self.device
         )
 
-        return client_num
+        return client_num, ClientType
+
     
     def train_clients(
         self,
@@ -57,12 +56,13 @@ class ClientManager:
         updates = []
 
         for client in clients_to_train:
-            client.set_params(model_params)
-            num_samples, update = client.train(num_epochs, batch_size)
+            client.model_params = model_params
+            num_samples, update = client._train(num_epochs, batch_size)
 
             updates.append((num_samples, update))
         
         return updates
+
 
     def eval_model(
         self,
@@ -71,23 +71,17 @@ class ClientManager:
         set_to_use: str = "test",
         batch_size: int = 10
     ) -> dict:
-        """
-        Tests self.model_params on given clients.
-        
-        Args:
-            clients_to_test: list of Client objects.
-            set_to_use: dataset to test on. Should be in ["train", "test"].
-        """
         clients_to_eval = self.get_clients_from_client_nums(selected_clients)
 
         metrics = {}
 
         for client in clients_to_eval:
-            client.set_params(model_params)
-            c_metrics = client.test(set_to_use, batch_size)
+            client.model_params = model_params
+            c_metrics = client._eval(set_to_use, batch_size)
             metrics[client.id] = c_metrics
         
         return metrics
+
 
     def get_clients_info(self, client_nums: list = None) -> tuple:
         clients = self.get_clients_from_client_nums(client_nums)
@@ -102,6 +96,7 @@ class ClientManager:
 
         return ids, groups, num_samples
 
+
     def get_clients_from_client_nums(self, client_nums: list) -> list:
         if client_nums is None:
             return list(self.clients.values())
@@ -112,6 +107,7 @@ class ClientManager:
             clients.append(self.clients[client_num])
 
         return clients
+
 
     def set_seeds(self, seed: float = 0):
         random.seed(seed)
