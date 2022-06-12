@@ -31,6 +31,12 @@ class Client:
         self._num_eval_samples = len(self.eval_data) if self.eval_data is not None else 0
         self._num_samples = self.num_train_samples + self.num_eval_samples
 
+        self.init()
+
+    
+    def init(self) -> None:
+        pass
+
 
     def train(self):
         self.train_model()
