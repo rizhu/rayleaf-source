@@ -43,7 +43,7 @@ def run_experiment(
     dataset: str,
     model: str,
     num_rounds: int,
-    eval_every: int,
+    eval_every,
     ServerType: type,
     client_types: list,
     clients_per_round: int,
@@ -116,6 +116,10 @@ def run_experiment(
     sys_writer_fn = get_sys_writer_function(metrics_name, metrics_dir)
     print_stats(0, server, client_num_samples, stat_writer_fn, use_val_set)
 
+    if type(eval_every) == int:
+        eval_every = set(range(0, num_rounds + 1, eval_every))
+    eval_every = set(eval_every)
+
     # Simulate training
     for i in range(num_rounds):
         # Select clients to train this round
@@ -130,7 +134,7 @@ def run_experiment(
         server._update_model()
 
         # Test model
-        if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
+        if (i + 1) in eval_every:
             print_stats(i + 1, server, client_num_samples, stat_writer_fn, use_val_set)
     
     end_time = datetime.now()
@@ -143,6 +147,8 @@ def run_experiment(
         ckpt_path.mkdir()
     save_path = server.save_model(Path(ckpt_path, f"{model}.ckpt"))
     print(f"Model saved in path: {save_path}")
+
+    ray.shutdown()
 
 
 def online(clients: list) -> list:
@@ -368,6 +374,6 @@ def print_metrics(metrics, weights, prefix=""):
         print("%s: %g, 10th percentile: %g, 50th percentile: %g, 90th percentile %g" \
               % (prefix + metric,
                  np.average(ordered_metric, weights=ordered_weights),
-                 np.percentile(ordered_metric, 10),
-                 np.percentile(ordered_metric, 50),
-                 np.percentile(ordered_metric, 90)))
+                 np.nanpercentile(ordered_metric, 10),
+                 np.nanpercentile(ordered_metric, 50),
+                 np.nanpercentile(ordered_metric, 90)))

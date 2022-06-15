@@ -52,7 +52,9 @@ class Client:
         self.num_epochs = num_epochs
         self.batch_size = batch_size
 
-        return self.train()
+        training_result = self.train()
+
+        return training_result
 
 
     def _eval(self, set_to_use: str ="test", batch_size: int = 10) -> dict:
