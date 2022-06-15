@@ -11,7 +11,7 @@ class Client:
             train_data: dict,
             eval_data: dict,
             model: type,
-            model_settings: tuple,
+            model_settings: dict,
             group: list = None,
             device: str = "cpu"
         ) -> None:
@@ -19,7 +19,7 @@ class Client:
         self.client_num = client_num
 
         self.device = device
-        self.model = model(*model_settings).to(self.device)
+        self.model = model(**model_settings).to(self.device)
 
         self.id = client_id
         self.group = group
