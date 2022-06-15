@@ -135,11 +135,8 @@ def run_experiment(
         # Test model
         if (i + 1) in eval_every:
             print_stats(i + 1, server, client_num_samples, stat_writer_fn, use_val_set)
-    
-    end_time = datetime.now()
 
     print(SECTION_STR.format("Post-Simulation"))
-    print(f"Total Simulation time: {end_time - start_time}")
     # Save server model
     ckpt_path = Path("checkpoints", dataset)
     if not ckpt_path.is_dir():
@@ -148,6 +145,9 @@ def run_experiment(
     print(f"Model saved in path: {save_path}")
 
     ray.shutdown()
+    
+    end_time = datetime.now()
+    print(f"Total Experiment time: {end_time - start_time}")
 
 
 def online(clients: list) -> list:
