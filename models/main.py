@@ -79,10 +79,9 @@ def run_experiment(
     ClientModel = getattr(mod, "ClientModel")
 
     # Create 2 models
-    model_settings = MODEL_SETTINGS[model_path]
-    model_settings[0] = client_lr
-    model_settings.insert(0, seed)
-    model_settings = tuple(model_settings)
+    model_settings = dict(MODEL_SETTINGS[model_path])
+    model_settings["seed"] = seed
+    model_settings["lr"] = client_lr
 
     # Get cpu or gpu device for training.
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -92,7 +91,7 @@ def run_experiment(
     client_managers = setup_client_managers(num_client_managers, seed=seed, device=device)
 
     # Create client model, and share params with server model
-    client_model = ClientModel(*model_settings)
+    client_model = ClientModel(**model_settings)
 
     # Create server
     server = ServerType(model_params=client_model.state_dict(), client_managers=client_managers)
