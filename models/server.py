@@ -17,6 +17,12 @@ class Server:
         self.updates = []
         self.selected_clients = [[] for _ in range(self.num_client_managers)]
 
+        self.init()
+
+
+    def init(self) -> None:
+        pass
+
 
     def select_clients(self, my_round: int, possible_clients: list, num_clients: int = 20) -> None:
         selected_client_nums = np.random.choice(possible_clients, num_clients, replace=False)
