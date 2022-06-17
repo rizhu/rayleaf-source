@@ -44,8 +44,17 @@ class Client:
         return self.num_train_samples, self.model_params
 
 
-    def train_model(self):
+    def train_model(self, compute_grads: bool = False):
+        if compute_grads:
+            self.grads = OrderedDict()
+            for param_tensor, layer in self.model_params.items():
+                self.grads[param_tensor] = layer.detach().clone()
+
         self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
+
+        if compute_grads:
+            for param_tensor, layer in self.model_params.items():
+                self.grads[param_tensor] = self.model_params[param_tensor] - self.grads[param_tensor]
 
 
     def _train(self, num_epochs: int = 1, batch_size: int = 10) -> tuple:
@@ -77,6 +86,16 @@ class Client:
     @model_params.setter
     def model_params(self, params: OrderedDict) -> None:
         self.model.load_state_dict(params)
+
+
+    @property
+    def grads(self) -> OrderedDict:
+        return self._grads
+
+    
+    @grads.setter
+    def grads(self, grads: OrderedDict) -> None:
+        self._grads = grads
 
 
     @property

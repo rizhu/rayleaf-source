@@ -63,7 +63,7 @@ def plot_accuracy_vs_round_number(stat_metrics, weighted=False, plot_stds=False,
         kwargs: Arguments to be passed to _set_plot_properties."""
     plt.figure(figsize=figsize)
     title_weighted = 'Weighted' if weighted else 'Unweighted'
-    plt.title('Accuracy vs Round Number (%s)' % title_weighted, fontsize=title_fontsize)
+    plt.title('Test Accuracy vs Round Number (%s)' % title_weighted, fontsize=title_fontsize)
     if weighted:
         accuracies = stat_metrics.groupby(NUM_ROUND_KEY).apply(_weighted_mean, ACCURACY_KEY, NUM_SAMPLES_KEY)
         accuracies = accuracies.reset_index(name=ACCURACY_KEY)
@@ -87,7 +87,7 @@ def plot_accuracy_vs_round_number(stat_metrics, weighted=False, plot_stds=False,
 
     plt.legend(['Mean', '10th percentile', '90th percentile'], loc='upper left')
 
-    plt.ylabel('Accuracy')
+    plt.ylabel('Test Accuracy')
     plt.xlabel('Round Number')
     _set_plot_properties(kwargs)
     plt.show()
