@@ -10,6 +10,9 @@ class Server:
     
     def __init__(self, model_params: OrderedDict, client_managers: list) -> None:
         self.model_params = model_params
+        for param_tensor, layer in self.model_params.items():
+            self.model_params[param_tensor] = layer.cuda()
+        self.reset_grads()
 
         self.client_managers = client_managers
         self.num_client_managers = len(client_managers)
@@ -78,10 +81,21 @@ class Server:
 
     def reset_model(self) -> None:
         new_model_params = OrderedDict()
+
         for param_tensor in self.model_params.keys():
             new_model_params[param_tensor] = 0
         
         self.model_params = new_model_params
+    
+
+    def reset_grads(self) -> None:
+        new_grads = OrderedDict()
+
+        for param_tensor, layer in self.model_params.items():
+            new_grads[param_tensor] = torch.zeros(layer.shape).cuda()
+        
+        self.grads = new_grads
+
 
     def eval_model(self, eval_all_clients: bool = True, set_to_use: str = "test", batch_size: int = 10) -> dict:
         metrics = {}
@@ -150,3 +164,13 @@ class Server:
     @model_params.setter
     def model_params(self, params: OrderedDict) -> None:
         self._model_params = params
+
+
+    @property
+    def grads(self) -> OrderedDict:
+        return self._grads
+
+    
+    @grads.setter
+    def grads(self, grads: OrderedDict) -> None:
+        self._grads = grads
