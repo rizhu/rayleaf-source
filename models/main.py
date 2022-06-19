@@ -20,7 +20,7 @@ from client import (
     Client
 )
 from client_manager import (
-    ClientManager
+    make_client_manager
 )
 from server import (
     Server
@@ -53,7 +53,8 @@ def run_experiment(
     metrics_name: str = "metrics",
     metrics_dir: str = "metrics",
     use_val_set: bool = False,
-    num_epochs: int = 1
+    num_epochs: int = 1,
+    client_managers_per_gpu: int = 1
 ) -> None:
     start_time = datetime.now()
 
@@ -86,9 +87,15 @@ def run_experiment(
     # Get cpu or gpu device for training.
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    num_client_managers = torch.cuda.device_count()
+    client_managers_per_gpu = max(1, client_managers_per_gpu)
+    num_client_managers = torch.cuda.device_count() * client_managers_per_gpu
     print(f"Spawning {num_client_managers} Client Managers using {device} device")
-    client_managers = setup_client_managers(num_client_managers, seed=seed, device=device)
+    client_managers = setup_client_managers(
+        num_client_managers=num_client_managers,
+        client_managers_per_gpu=client_managers_per_gpu,
+        seed=seed,
+        device=device
+    )
 
     # Create client model, and share params with server model
     client_model = ClientModel(**model_settings)
@@ -105,6 +112,10 @@ def run_experiment(
         model_settings=model_settings,
         use_val_set=use_val_set
     )
+
+    if clients_per_round == -1:
+        clients_per_round = len(clients)
+
     client_ids, client_groups, client_num_samples = server.get_clients_info()
     client_counts = count_selected_clients(online(clients), clients)
     print(f"{len(clients)} total clients: {client_counts_string(client_counts)}")
@@ -155,7 +166,10 @@ def online(clients: list) -> list:
     return sorted(clients.keys())
 
 
-def setup_client_managers(num_client_managers: int, seed: float, device: str = "cpu"):
+def setup_client_managers(num_client_managers: int, client_managers_per_gpu: int, seed: float, device: str = "cpu"):
+    gpus_per_client_manager = 1 / client_managers_per_gpu
+    ClientManager = make_client_manager(num_gpus=gpus_per_client_manager)
+
     if num_client_managers < 1:
         return [ClientManager.remote(id=0)]
 
