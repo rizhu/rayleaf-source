@@ -15,3 +15,5 @@ _build/
 _templates/
 autodoc/
 *.png
+experiments/
+output/
