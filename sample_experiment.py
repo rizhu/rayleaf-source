@@ -1,7 +1,7 @@
 from rayleaf.main import run_experiment
 
-from rayleaf.server import Server
-from rayleaf.client import Client
+from rayleaf.entities.server import Server
+from rayleaf.entities.client import Client
 
 
 class FlippingClient(Client):
@@ -37,7 +37,7 @@ class AmplifyingClient(Client):
 
 run_experiment(
     dataset = "femnist",
-    dataset_dir = "/home/huberkeley/rayleaf/data/femnist/",
+    dataset_dir = "data/femnist/",
     output_dir="output",
     model = "cnn",
     num_rounds = 20,
@@ -49,5 +49,6 @@ run_experiment(
     batch_size = 64,
     seed = 0,
     use_val_set = False,
-    num_epochs = 5
+    num_epochs = 5,
+    client_managers_per_gpu = 1
 )

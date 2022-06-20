@@ -14,19 +14,18 @@ import torch
 
 import rayleaf.metrics.writer as metrics_writer
 
-from rayleaf.baseline_constants import (
+from rayleaf.models.model_constants import (
     MODEL_SETTINGS
 )
-from rayleaf.client import (
+from rayleaf.entities.client import (
     Client
 )
-from rayleaf.client_manager import (
+from rayleaf.core.client_manager import (
     make_client_manager
 )
-from rayleaf.server import (
+from rayleaf.entities.server import (
     Server
 )
-
 from rayleaf.utils.data_utils import (
     read_data
 )
@@ -81,7 +80,7 @@ def run_experiment(
         os.makedirs(output_dir, exist_ok=True)
     
     print(SECTION_STR.format(model_path))
-    mod = importlib.import_module(f"rayleaf.{model_path}")
+    mod = importlib.import_module(f"rayleaf.models.{model_path}")
     ClientModel = getattr(mod, "ClientModel")
 
     # Create 2 models

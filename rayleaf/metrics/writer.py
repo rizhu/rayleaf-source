@@ -11,7 +11,7 @@ import sys
 models_dir = Path().resolve().parent    # os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(models_dir)
 
-from rayleaf.baseline_constants import CLIENT_ID_KEY, NUM_ROUND_KEY, NUM_SAMPLES_KEY
+from rayleaf.metrics.metrics_constants import CLIENT_ID_KEY, NUM_ROUND_KEY, NUM_SAMPLES_KEY
 
 
 COLUMN_NAMES = [
