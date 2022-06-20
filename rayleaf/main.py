@@ -13,7 +13,6 @@ import ray
 import torch
 
 import rayleaf.metrics.writer as metrics_writer
-
 from rayleaf.models.model_constants import (
     MODEL_SETTINGS
 )
