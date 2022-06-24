@@ -1,10 +1,10 @@
-from collections import (
-    OrderedDict
-)
+from collections import OrderedDict
+
 
 import numpy as np
 import ray
 import torch
+
 
 class Server:
     

@@ -1,6 +1,7 @@
 """dict: Model specific parameter specification"""
 
 ACCURACY_KEY = "accuracy"
+LOSS_KEY = "loss"
 BYTES_WRITTEN_KEY = "bytes_written"
 BYTES_READ_KEY = "bytes_read"
 LOCAL_COMPUTATIONS_KEY = "local_computations"
