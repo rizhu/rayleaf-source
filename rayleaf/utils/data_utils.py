@@ -1,11 +1,10 @@
-from collections import (
-    defaultdict
-)
 import json
+
+from collections import defaultdict
+from pathlib import Path
+
+
 import numpy as np
-from pathlib import (
-    Path
-)
 
 
 def batch_data(data, batch_size, seed):

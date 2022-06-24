@@ -1,14 +1,8 @@
-from torch import (
-    nn,
-    Tensor
-)
-from torch.utils.data import (
-    TensorDataset
-)
+from torch import nn, Tensor
+from torch.utils.data import TensorDataset
 
-from rayleaf.models.model import (
-    Model
-)
+
+from rayleaf.models.model import Model
 
 
 IMAGE_SIZE = 28

@@ -1,6 +1,5 @@
-from collections import (
-    OrderedDict
-)
+from collections import OrderedDict
+
 
 class Client:
     

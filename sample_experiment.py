@@ -1,7 +1,5 @@
-from rayleaf.main import run_experiment
-
-from rayleaf.entities.server import Server
-from rayleaf.entities.client import Client
+import rayleaf
+from rayleaf.entities import Server, Client
 
 
 class FlippingClient(Client):
@@ -35,10 +33,10 @@ class AmplifyingClient(Client):
         return self.num_train_samples, self.model_params
 
 
-run_experiment(
+rayleaf.run_experiment(
     dataset = "femnist",
     dataset_dir = "data/femnist/",
-    output_dir="output",
+    output_dir="output/sample/",
     model = "cnn",
     num_rounds = 20,
     eval_every = 10,
@@ -50,5 +48,7 @@ run_experiment(
     seed = 0,
     use_val_set = False,
     num_epochs = 5,
-    client_managers_per_gpu = 1
+    gpus_per_client_manager=0.6,
+    num_client_managers=7,
+    save_model=False
 )

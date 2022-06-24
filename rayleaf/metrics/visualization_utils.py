@@ -2,6 +2,8 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from decimal import Decimal
+
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,19 +11,18 @@ import os
 import pandas as pd
 import sys
 
-from decimal import Decimal
 
-models_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(models_dir)
-
-from baseline_constants import (
+from rayleaf.metrics.metrics_constants import (
     ACCURACY_KEY,
-    BYTES_READ_KEY,
-    BYTES_WRITTEN_KEY,
     CLIENT_ID_KEY,
     LOCAL_COMPUTATIONS_KEY,
     NUM_ROUND_KEY,
-    NUM_SAMPLES_KEY)
+    NUM_SAMPLES_KEY
+)
+
+
+models_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(models_dir)
 
 
 def load_data(stat_metrics_file='stat_metrics.csv', sys_metrics_file='sys_metrics.csv'):

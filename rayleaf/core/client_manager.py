@@ -1,11 +1,12 @@
-from collections import (
-    OrderedDict
-)
 import random
+
+from collections import OrderedDict
+
 
 import numpy as np
 import ray
 import torch
+
 
 def make_client_manager(num_gpus: float) -> type:
 

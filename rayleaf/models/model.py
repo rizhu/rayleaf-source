@@ -1,18 +1,14 @@
-"""Interfaces for ClientModel and ServerModel."""
-
 from collections import OrderedDict
 
-import torch
-from torch import (
-    nn,
-    optim
-)
-from torch.utils.data import (
-    Dataset,
-    DataLoader
-)
 
-from rayleaf.metrics.metrics_constants import ACCURACY_KEY
+import torch
+
+from torch import nn, optim
+from torch.utils.data import Dataset, DataLoader
+
+
+from rayleaf.metrics.metrics_constants import ACCURACY_KEY, LOSS_KEY
+
 
 class Model(nn.Module):
 
@@ -68,4 +64,4 @@ class Model(nn.Module):
         test_loss /= num_batches
         correct /= size
 
-        return {ACCURACY_KEY: correct, "loss": test_loss}
+        return {ACCURACY_KEY: correct, LOSS_KEY: test_loss}

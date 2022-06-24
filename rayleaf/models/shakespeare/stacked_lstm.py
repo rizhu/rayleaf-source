@@ -1,18 +1,10 @@
-from torch import (
-    nn,
-    Tensor
-)
-from torch.utils.data import (
-    TensorDataset
-)
+from torch import nn, Tensor
+from torch.utils.data import TensorDataset
 
-from rayleaf.models.model import (
-    Model
-)
-from rayleaf.utils.language_utils import (
-    letter_to_index,
-    word_to_indices
-)
+
+from rayleaf.models.model import Model
+from rayleaf.utils.language_utils import letter_to_index, word_to_indices
+
 
 class ClientModel(Model):
     def __init__(self, seed, lr, seq_len, num_classes, n_hidden):
