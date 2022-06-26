@@ -6,5 +6,6 @@ Pillow
 ray
 scipy
 torch
+torchaudio
 torchvision
 tqdm
