@@ -5,6 +5,7 @@ import numpy as np
 import ray
 import torch
 
+from tqdm import tqdm
 
 class Server:
     
@@ -49,13 +50,16 @@ class Server:
                 )
                 training_futures.append(training_future)
         
-        while len(training_futures) > 0:
-            complete, incomplete = ray.wait(training_futures)
+        num_futures = len(training_futures)
+        with tqdm(total=num_futures, leave=False, desc="Training clients") as pbar:
+            while len(training_futures) > 0:
+                complete, incomplete = ray.wait(training_futures)
 
-            for result in ray.get(complete):
-                self.updates.extend(result)
+                for result in ray.get(complete):
+                    self.updates.extend(result)
+                    pbar.update(1)
 
-            training_futures = incomplete
+                training_futures = incomplete
 
 
     def update_model(self) -> None:
@@ -119,13 +123,17 @@ class Server:
                     )
                     eval_futures.append(eval_future)
 
-        while len(eval_futures) > 0:
-            complete, incomplete = ray.wait(eval_futures)
 
-            for manager_metrics in ray.get(complete):
-                metrics.update(manager_metrics)
+        num_futures = len(eval_futures)
+        with tqdm(total=num_futures, leave=False, desc="Evaluating model") as pbar:
+            while len(eval_futures) > 0:
+                complete, incomplete = ray.wait(eval_futures)
 
-            eval_futures = incomplete
+                for manager_metrics in ray.get(complete):
+                    metrics.update(manager_metrics)
+                    pbar.update(1)
+
+                eval_futures = incomplete
         
         return metrics
 
