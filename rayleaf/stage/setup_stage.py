@@ -24,6 +24,10 @@ def initialize_resources(
     client_lr: float,
     seed: int = 0,
 ):
+    output_dir = Path(output_dir)
+    if not output_dir.is_dir():
+        os.makedirs(output_dir, exist_ok=True)
+        
     experiment_log = open(Path(output_dir, "log.txt"), mode="w+")
     logging_utils.logging_file = experiment_log
 
@@ -41,10 +45,6 @@ def initialize_resources(
         logging_utils.log(f"Please specify a valid dataset and model.")
         logging_utils.logging_file = experiment_log = None
         sys.exit()
-
-    output_dir = Path(output_dir)
-    if not output_dir.is_dir():
-        os.makedirs(output_dir, exist_ok=True)
     
     logging_utils.log(utils.SECTION_STR.format(model_path))
 
