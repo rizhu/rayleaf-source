@@ -125,7 +125,10 @@ def setup_clients(
     train_data_dir = Path(dataset_dir, "data", "train")
     test_data_dir = Path(dataset_dir, "data", eval_set)
 
-    users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
+    if dataset == "speech_commands":
+        pass
+    else:
+        users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
     verify_clients_input(clients=clients, max_num_clients=len(users), dataset=dataset)
 
     clients = create_clients(
