@@ -1,6 +1,9 @@
 from collections import OrderedDict
 
 
+import rayleaf.stats as stats
+
+
 class Client:
     
     def __init__(
@@ -79,6 +82,7 @@ class Client:
         eval_metrics = self.model.eval_model(data, batch_size, self.device)
         self.model = self.model.to("cpu")
 
+        eval_metrics[stats.CLIENT_ID_KEY] = self.id
         return eval_metrics
 
 

@@ -76,14 +76,14 @@ def make_client_cluster(num_gpus: float) -> type:
         ) -> dict:
             clients_to_eval = self.get_clients_from_client_nums(selected_clients)
 
-            metrics = {}
+            stats = []
 
             for client in clients_to_eval:
                 client.model_params = model_params
-                c_metrics = client._eval(set_to_use, batch_size)
-                metrics[client.id] = c_metrics
+                client_stats = client._eval(set_to_use, batch_size)
+                stats.append(client_stats)
             
-            return metrics
+            return stats
 
 
         def get_clients_info(self, client_nums: list = None) -> tuple:

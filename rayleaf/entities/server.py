@@ -1,5 +1,4 @@
 from collections import OrderedDict
-import sys
 
 
 import numpy as np
@@ -100,8 +99,6 @@ class Server:
 
 
     def eval_model(self, eval_all_clients: bool = True, set_to_use: str = "test", batch_size: int = 10) -> dict:
-        metrics = {}
-
         eval_futures = []
         if eval_all_clients:
             for client_cluster in self.client_clusters:
@@ -121,6 +118,7 @@ class Server:
                     )
                     eval_futures.append(eval_future)
 
+        stats = []
 
         num_futures = len(eval_futures)
         with tqdm(total=num_futures, leave=False, desc="Evaluating model") as pbar:
@@ -128,12 +126,12 @@ class Server:
                 complete, incomplete = ray.wait(eval_futures)
 
                 for cluster_metrics in ray.get(complete):
-                    metrics.update(cluster_metrics)
+                    stats.extend(cluster_metrics)
                     pbar.update(1)
 
                 eval_futures = incomplete
         
-        return metrics
+        return stats
 
 
     def get_clients_info(self) -> tuple:

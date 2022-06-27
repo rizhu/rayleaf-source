@@ -1,3 +1,8 @@
+import pandas as pd
+
+from tabulate import tabulate
+
+
 logging_file = None
 
 
@@ -6,6 +11,10 @@ def log(msg: str = "") -> None:
 
     print(msg, file=logging_file)
     print(msg)
+
+
+def log_df(df: pd.DataFrame):
+    log(tabulate(df, headers="keys", tablefmt="psql", showindex=False))
 
 
 def shutdown_log() -> None:

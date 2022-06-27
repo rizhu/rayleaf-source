@@ -1,48 +1,68 @@
 import numpy as np
+import pandas as pd
 
 
-import rayleaf.metrics.writer as metrics_writer
+import rayleaf.utils as utils
 import rayleaf.utils.logging_utils as logging_utils
 from rayleaf.entities.server import Server
+import rayleaf.stats as stats
 
 
 def eval_server(
     server: Server,
-    client_num_samples,
-    round: int,
-    stat_writer_fn,
-    use_val_set: bool
+    num_round: int,
+    eval_set: bool
 ):
-    print_stats(round, server, client_num_samples, stat_writer_fn, use_val_set)
+    train_stats, eval_stats = _eval_clients(server, num_round, eval_set=eval_set)
 
 
-def print_stats(num_round, server, num_samples, writer, use_val_set):
-    train_stat_metrics = server.eval_model(set_to_use="train")
-    print_metrics(train_stat_metrics, num_samples, prefix="train_")
-    writer(num_round, train_stat_metrics, "train")
-
-    eval_set = "test" if not use_val_set else "val"
-    test_stat_metrics = server.eval_model(set_to_use=eval_set)
-    print_metrics(test_stat_metrics, num_samples, prefix="{}_".format(eval_set))
-    writer(num_round, test_stat_metrics, eval_set)
+    agg_train_stats, agg_eval_stats = _compute_stats(train_stats), _compute_stats(eval_stats)
+    _print_aggregate_stats(agg_train_stats, header=f"training accuracy: round {num_round}".title())
+    _print_aggregate_stats(agg_eval_stats, header=f"{eval_set} accuracy: round {num_round}".title())
+    agg_train_stats[stats.ROUND_NUMBER_KEY], agg_eval_stats[stats.ROUND_NUMBER_KEY] = num_round, num_round
 
 
-def print_metrics(metrics, weights, prefix=""):
-    """Prints weighted averages of the given metrics.
+def _eval_clients(
+    server: Server,
+    num_round: int,
+    eval_set: str
+):
+    train_stats = server.eval_model(set_to_use="train")
+    eval_stats = server.eval_model(set_to_use=eval_set)
 
-    Args:
-        metrics: dict with client ids as keys. Each entry is a dict
-            with the metrics of that client.
-        weights: dict with client ids as keys. Each entry is the weight
-            for that client.
-    """
-    ordered_weights = [weights[c] for c in sorted(weights)]
-    metric_names = metrics_writer.get_metrics_names(metrics)
-    for metric in metric_names:
-        ordered_metric = [metrics[c][metric] for c in sorted(metrics)]
-        logging_utils.log("%s: %g, 10th percentile: %g, 50th percentile: %g, 90th percentile %g" \
-              % (prefix + metric,
-                 np.average(ordered_metric, weights=ordered_weights),
-                 np.nanpercentile(ordered_metric, 10),
-                 np.nanpercentile(ordered_metric, 50),
-                 np.nanpercentile(ordered_metric, 90)))
+    train_stats, eval_stats = pd.DataFrame(train_stats), pd.DataFrame(eval_stats)
+    train_stats[stats.ROUND_NUMBER_KEY], eval_stats[stats.ROUND_NUMBER_KEY] = num_round, num_round
+
+    return train_stats, eval_stats
+
+
+def _compute_stats(
+    stats_df: pd.DataFrame
+):
+    num_correct = stats_df[stats.NUM_CORRECT_KEY].values
+    num_samples = stats_df[stats.NUM_SAMPLES_KEY].values
+
+    accuracy = num_correct / num_samples
+
+    avg = np.average(accuracy, weights=num_samples)
+    med = np.median(accuracy)
+    percentiles = {
+        10: np.nanpercentile(accuracy, 10),
+        90: np.nanpercentile(accuracy, 90)
+    }
+
+    aggregate_stats = {
+        stats.AVERAGE_KEY: avg,
+        stats.MEDIAN_KEY: med
+    }
+    for percentile, value in percentiles.items():
+        aggregate_stats[stats.PERCENTILE_KEY(percentile)] = value
+
+    return aggregate_stats
+
+
+def _print_aggregate_stats(stats: dict, header: str):
+    logging_utils.log(utils.EVAL_STR.format(header))
+
+    stats_df = pd.DataFrame([stats])
+    logging_utils.log_df(stats_df)

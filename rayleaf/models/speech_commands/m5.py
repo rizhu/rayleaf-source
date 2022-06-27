@@ -8,9 +8,9 @@ from torch.utils.data import Dataset, DataLoader
 
 import rayleaf.models.utils as model_utils
 
-from rayleaf.metrics.metrics_constants import ACCURACY_KEY, LOSS_KEY
 from rayleaf.models.model import Model
 from rayleaf.models.speech_commands import utils as sc_utils
+import rayleaf.stats as stats
 
 
 ORIGINAL_FREQ = 16000
@@ -128,9 +128,12 @@ class ClientModel(Model):
             correct += model_utils.number_of_correct(preds, y)
 
         test_loss /= num_batches
-        correct /= size
 
-        return {ACCURACY_KEY: correct, LOSS_KEY: test_loss}
+        return {
+            stats.NUM_CORRECT_KEY: correct,
+            stats.NUM_SAMPLES_KEY: size,
+            stats.LOSS_KEY: test_loss
+        }
 
 
     def generate_dataset(self, data: Dataset) -> Dataset:
