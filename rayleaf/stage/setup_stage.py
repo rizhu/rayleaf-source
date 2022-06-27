@@ -10,6 +10,8 @@ import ray
 
 import rayleaf.utils as utils
 import rayleaf.utils.logging_utils as logging_utils
+import rayleaf.models.speech_commands.initialize_data as sc_initialize_data
+
 from rayleaf.core.client_manager import make_client_manager
 from rayleaf.utils.data_utils import read_data
 from rayleaf.entities.client import Client
@@ -18,7 +20,7 @@ from rayleaf.models.model_constants import MODEL_SETTINGS
 
 
 def initialize_resources(
-    dataset: str,
+    dataset_input: str,
     output_dir: str,
     model: str,
     client_lr: float,
@@ -31,8 +33,8 @@ def initialize_resources(
     experiment_log = open(Path(output_dir, "log.txt"), mode="w+")
     logging_utils.logging_file = experiment_log
 
-    assert dataset.lower() in utils.DATASETS, f"Dataset \"{dataset}\" is not a valid dataset. Available datasets are {utils.DATASETS}"
-    dataset = dataset.lower()
+    dataset = verify_dataset(dataset_input)
+    dataset_input = dataset_input.lower()
 
     model_path = f"{dataset}.{model}"
     try:
@@ -42,7 +44,7 @@ def initialize_resources(
         model_settings["seed"] = seed
         model_settings["lr"] = client_lr
     except ModuleNotFoundError:
-        logging_utils.log(f"Please specify a valid dataset and model.")
+        logging_utils.log(f"Dataset {dataset} and model {model} is not a valid dataset-model pair.")
         logging_utils.logging_file = experiment_log = None
         sys.exit()
     
@@ -87,6 +89,7 @@ def create_entities(
         dataset_dir=dataset_dir,
         model=ClientModel,
         model_settings=model_settings,
+        seed=seed,
         use_val_set=use_val_set
     )
 
@@ -114,7 +117,8 @@ def setup_clients(
     dataset_dir: str,
     model: type,
     model_settings: tuple,
-    use_val_set: bool = False
+    seed: float,
+    use_val_set: bool = False,
 ) -> list:
     """Instantiates clients based on given train and test data directories.
 
@@ -125,8 +129,12 @@ def setup_clients(
     train_data_dir = Path(dataset_dir, "data", "train")
     test_data_dir = Path(dataset_dir, "data", eval_set)
 
-    users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
-    verify_clients_input(clients=clients, max_num_clients=len(users), dataset=dataset)
+    if "speech_commands" in dataset:
+        num_clients = verify_clients_input(clients=clients, max_num_clients=sc_initialize_data.MAX_NUMBER_OF_CLIENTS, dataset="speech_commands")
+        users, groups, train_data, test_data = sc_initialize_data.federate_dataset(root=dataset_dir, num_clients=num_clients, seed=seed, iid="iid" in dataset)
+    else:
+        users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
+        verify_clients_input(clients=clients, max_num_clients=len(users), dataset=dataset)
 
     clients = create_clients(
         clients=clients,
@@ -152,7 +160,7 @@ def create_clients(
     model: type,
     model_settings: tuple
 ) -> list:
-    if len(groups) == 0:
+    if not groups or len(groups) == 0:
         groups = [[] for _ in users]
 
     num_client_managers = len(client_managers)
@@ -190,6 +198,15 @@ def create_clients(
     return clients
 
 
+def verify_dataset(dataset: str):
+    for valid_dataset in utils.DATASETS:
+        if valid_dataset in dataset:
+            logging_utils.log(f"Dataset: {valid_dataset}")
+            return valid_dataset
+
+    raise ValueError(f"Dataset {dataset} is not a valid dataset.")
+
+
 def verify_server_input(ServerType: type):
     assert isinstance(ServerType, type), f"ServerType {ServerType} is not a class."
     assert issubclass(ServerType, Server), f"ServerType {ServerType} is not a subclass of Server."
@@ -199,7 +216,7 @@ def verify_clients_input(clients: list, max_num_clients: int, dataset: str):
     prompt = "Each element in clients list must be a length-2 tuple of the form (Client subclass: type, count: int)."
     total = 0
 
-    num_clients = len(clients)
+    num_client_types = len(clients)
     for idx, pair in enumerate(clients):
 
         assert len(pair) == 2, f"{prompt} Got {pair} at index {idx} of clients list."
@@ -209,7 +226,7 @@ def verify_clients_input(clients: list, max_num_clients: int, dataset: str):
 
         assert isinstance(pair[1], int), f"{prompt} Second element at index {idx} or clients list has type {type(pair[1])}."
 
-        if idx < num_clients - 1:
+        if idx < num_client_types - 1:
             assert pair[1] > 0, f"Each Client count except for last one must be greater than 0. Got count of {pair[1]} at index {idx} of clients list."
         else:
             assert pair[1] == -1 or pair[1] > 0, f"Last Client count must be greater than 0 or be -1. Got count of {pair[1]} at index {idx} of clients list."
@@ -220,3 +237,5 @@ def verify_clients_input(clients: list, max_num_clients: int, dataset: str):
         total += pair[1]
     
     assert total <= max_num_clients, f"Max number of clients for {dataset} dataset is {max_num_clients} but clients list defines {total} clients."
+
+    return total

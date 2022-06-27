@@ -1,12 +1,9 @@
-from collections import OrderedDict
-
-
 import torch
 
 from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 
-
+import rayleaf.models.utils as model_utils
 from rayleaf.metrics.metrics_constants import ACCURACY_KEY, LOSS_KEY
 
 
@@ -55,11 +52,12 @@ class Model(nn.Module):
 
         for X, y in test_dataloader:
             X, y = X.to(device), y.to(device)
+            
+            probs = self.forward(X)
+            test_loss += self.loss_fn(probs, y).item()
 
-            pred = self.forward(X)
-
-            test_loss += self.loss_fn(pred, y).item()
-            correct += (pred.argmax(dim=1) == y).type(torch.float).sum().item()
+            preds = model_utils.get_predicted_labels(probs)
+            correct += model_utils.number_of_correct(preds, y)
 
         test_loss /= num_batches
         correct /= size

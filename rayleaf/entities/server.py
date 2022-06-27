@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import sys
 
 
 import numpy as np
@@ -73,8 +74,7 @@ class Server:
                 self.model_params[param_tensor] += client_samples * layer
 
         for param_tensor in self.model_params.keys():
-            self.model_params[param_tensor] /= total_weight
-
+            self.model_params[param_tensor] = (self.model_params[param_tensor] / total_weight).to(self.model_params[param_tensor].dtype)
 
     @torch.no_grad()
     def _update_model(self) -> None:

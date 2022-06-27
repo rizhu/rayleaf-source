@@ -31,5 +31,8 @@ MODEL_SETTINGS = {
         "seq_len": 10,
         "num_hidden": 256,
         "num_layers": 2
+    },
+    "speech_commands.m5": {
+        "num_classes": 35
     }
 }
