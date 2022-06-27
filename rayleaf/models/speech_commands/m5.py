@@ -1,3 +1,4 @@
+import torch
 import torchaudio
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,6 +6,9 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
 
+import rayleaf.models.utils as model_utils
+
+from rayleaf.metrics.metrics_constants import ACCURACY_KEY, LOSS_KEY
 from rayleaf.models.model import Model
 from rayleaf.models.speech_commands import utils as sc_utils
 
@@ -81,8 +85,53 @@ class ClientModel(Model):
             X = resample(X)
 
             pred = self.forward(X)
-            loss = self.loss_fn(pred, y)
+            loss = self.loss_fn(pred.squeeze(), y)
 
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+
+    
+    @torch.no_grad()
+    def eval_model(self, data: Dataset, batch_size: int = 10, device: str = "cpu") -> dict:
+        pin_memory = device == "cuda"
+
+        test_dataloader = DataLoader(data, 
+            batch_size=batch_size, 
+            shuffle=False, 
+            drop_last=False,
+            collate_fn=sc_utils.collate_fn,
+            pin_memory=pin_memory
+        )
+
+        size = len(data)
+        num_batches = len(test_dataloader)
+        test_loss, correct = 0, 0
+
+        resample = torchaudio.transforms.Resample(orig_freq=ORIGINAL_FREQ, new_freq=RESAMPLE_FREQ).to(device)
+
+        self.eval()
+        for X, y in test_dataloader:
+            X, y = X.to(device), y.to(device)
+            X = resample(X)
+
+            probs = self.forward(X)
+            probs = probs.squeeze(dim=1)
+            try:
+                test_loss += self.loss_fn(probs, y).item()
+            except Exception as e:
+                print(probs.squeeze())
+                print(y)
+                raise e
+
+            preds = model_utils.get_predicted_labels(probs)
+            correct += model_utils.number_of_correct(preds, y)
+
+        test_loss /= num_batches
+        correct /= size
+
+        return {ACCURACY_KEY: correct, LOSS_KEY: test_loss}
+
+
+    def generate_dataset(self, data: Dataset) -> Dataset:
+        return data

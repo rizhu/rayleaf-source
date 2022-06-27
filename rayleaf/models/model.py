@@ -52,7 +52,7 @@ class Model(nn.Module):
 
         for X, y in test_dataloader:
             X, y = X.to(device), y.to(device)
-
+            
             probs = self.forward(X)
             test_loss += self.loss_fn(probs, y).item()
 

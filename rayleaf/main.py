@@ -40,7 +40,7 @@ def run_experiment(
     start_time = datetime.now()
     
     ClientModel, model_settings = rayleaf.stage.initialize_resources(
-        dataset=dataset,
+        dataset_input=dataset,
         output_dir=output_dir,
         model=model,
         client_lr=client_lr,

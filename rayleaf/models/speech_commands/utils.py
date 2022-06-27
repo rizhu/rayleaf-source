@@ -45,7 +45,7 @@ LABELS = [
 ]
 
 
-def label_to_index(word):=
+def label_to_index(word):
     return torch.tensor(LABELS.index(word))
 
 
