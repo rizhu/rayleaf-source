@@ -33,8 +33,8 @@ def run_experiment(
     seed: int = 0,
     use_val_set: bool = False,
     num_epochs: int = 1,
-    gpus_per_client_manager: float = 1,
-    num_client_managers: int = NUM_GPUS,
+    gpus_per_client_cluster: float = 1,
+    num_client_clusters: int = NUM_GPUS,
     save_model: bool = False
 ) -> None:
     start_time = datetime.now()
@@ -60,8 +60,8 @@ def run_experiment(
 
     server, clients = rayleaf.stage.create_entities(
         device=device,
-        num_client_managers=num_client_managers,
-        gpus_per_client_manager=gpus_per_client_manager,
+        num_client_clusters=num_client_clusters,
+        gpus_per_client_cluster=gpus_per_client_cluster,
         seed=seed,
         model_settings=model_settings,
         ClientModel=ClientModel,

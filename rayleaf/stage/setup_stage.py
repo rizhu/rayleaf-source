@@ -12,7 +12,7 @@ import rayleaf.utils as utils
 import rayleaf.utils.logging_utils as logging_utils
 import rayleaf.models.speech_commands.initialize_data as sc_initialize_data
 
-from rayleaf.core.client_manager import make_client_manager
+from rayleaf.core.client_cluster import make_client_cluster
 from rayleaf.utils.data_utils import read_data
 from rayleaf.entities.client import Client
 from rayleaf.entities.server import Server
@@ -55,8 +55,8 @@ def initialize_resources(
 
 def create_entities(
     device: str,
-    num_client_managers: int,
-    gpus_per_client_manager: float,
+    num_client_clusters: int,
+    gpus_per_client_cluster: float,
     seed: float,
     model_settings: dict,
     ClientModel: type,
@@ -66,10 +66,10 @@ def create_entities(
     dataset_dir: str,
     use_val_set: bool
 ):
-    logging_utils.log(f"Spawning {num_client_managers} Client Managers using {device} device")
-    client_managers = setup_client_managers(
-        num_client_managers=num_client_managers,
-        gpus_per_client_manager=gpus_per_client_manager,
+    logging_utils.log(f"Spawning {num_client_clusters} ClientClusters using {device} device")
+    client_clusters = setup_client_clusters(
+        num_client_clusters=num_client_clusters,
+        gpus_per_client_cluster=gpus_per_client_cluster,
         seed=seed,
         device=device
     )
@@ -79,12 +79,12 @@ def create_entities(
 
     # Create server
     verify_server_input(ServerType=ServerType)
-    server = ServerType(model_params=client_model.state_dict(), client_managers=client_managers)
+    server = ServerType(model_params=client_model.state_dict(), client_clusters=client_clusters)
 
     # Create clients
     clients = setup_clients(
         clients=client_types,
-        client_managers=client_managers,
+        client_clusters=client_clusters,
         dataset=dataset,
         dataset_dir=dataset_dir,
         model=ClientModel,
@@ -96,23 +96,23 @@ def create_entities(
     return server, clients
 
 
-def setup_client_managers(num_client_managers: int, gpus_per_client_manager: int, seed: float, device: str = "cpu"):
-    ClientManager = make_client_manager(num_gpus=gpus_per_client_manager)
+def setup_client_clusters(num_client_clusters: int, gpus_per_client_cluster: int, seed: float, device: str = "cpu"):
+    ClientCluster = make_client_cluster(num_gpus=gpus_per_client_cluster)
 
-    if num_client_managers < 1:
-        return [ClientManager.remote(id=0)]
+    if num_client_clusters < 1:
+        return [ClientCluster.remote(id=0)]
 
-    client_managers = []
+    client_clusters = []
     
-    for id in range(num_client_managers):
-        client_managers.append(ClientManager.remote(id=id, seed=seed, device=device))
+    for id in range(num_client_clusters):
+        client_clusters.append(ClientCluster.remote(id=id, seed=seed, device=device))
     
-    return client_managers
+    return client_clusters
 
 
 def setup_clients(
     clients: list,
-    client_managers: list,
+    client_clusters: list,
     dataset: str,
     dataset_dir: str,
     model: type,
@@ -138,7 +138,7 @@ def setup_clients(
 
     clients = create_clients(
         clients=clients,
-        client_managers=client_managers,
+        client_clusters=client_clusters,
         users=users,
         groups=groups,
         train_data=train_data,
@@ -152,7 +152,7 @@ def setup_clients(
 
 def create_clients(
     clients: list,
-    client_managers: list,
+    client_clusters: list,
     users: list,
     groups: list,
     train_data: dict,
@@ -163,7 +163,7 @@ def create_clients(
     if not groups or len(groups) == 0:
         groups = [[] for _ in users]
 
-    num_client_managers = len(client_managers)
+    num_client_clusters = len(client_clusters)
 
     client_creation_futures = []
 
@@ -173,7 +173,7 @@ def create_clients(
     for ClientType, count in clients:
         for _ in range(count):
             u, g = next(user_group_pairs)
-            future = client_managers[client_num % num_client_managers].add_client.remote(
+            future = client_clusters[client_num % num_client_clusters].add_client.remote(
                 ClientType=ClientType,
                 client_num=client_num,
                 client_id=u,
