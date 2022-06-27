@@ -18,7 +18,7 @@ class Client:
         self.client_num = client_num
 
         self.device = device
-        self.model = model(**model_settings).to(self.device)
+        self.model = model(**model_settings)
 
         self.id = client_id
         self.group = group
@@ -49,7 +49,9 @@ class Client:
             for param_tensor, layer in self.model_params.items():
                 self.grads[param_tensor] = layer.detach().clone()
 
+        self.model = self.model.to(self.device)
         self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
+        self.model = self.model.to("cpu")
 
         if compute_grads:
             for param_tensor, layer in self.model_params.items():
@@ -73,7 +75,10 @@ class Client:
         elif set_to_use == "test" or set_to_use == "val":
             data = self.eval_data
 
+        self.model = self.model.to(self.device)
         eval_metrics = self.model.eval_model(data, batch_size, self.device)
+        self.model = self.model.to("cpu")
+
         return eval_metrics
 
 

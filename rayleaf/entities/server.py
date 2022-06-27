@@ -10,17 +10,15 @@ from tqdm import tqdm
 
 class Server:
     
-    def __init__(self, model_params: OrderedDict, client_managers: list) -> None:
+    def __init__(self, model_params: OrderedDict, client_clusters: list) -> None:
         self.model_params = model_params
-        for param_tensor, layer in self.model_params.items():
-            self.model_params[param_tensor] = layer.cuda()
         self.reset_grads()
 
-        self.client_managers = client_managers
-        self.num_client_managers = len(client_managers)
+        self.client_clusters = client_clusters
+        self.num_client_clusters = len(client_clusters)
 
         self.updates = []
-        self.selected_clients = [[] for _ in range(self.num_client_managers)]
+        self.selected_clients = [[] for _ in range(self.num_client_clusters)]
 
         self.init()
 
@@ -31,21 +29,21 @@ class Server:
 
     def select_clients(self, my_round: int, possible_clients: list, num_clients: int = 20) -> None:
         selected_client_nums = np.random.choice(possible_clients, num_clients, replace=False)
-        self.selected_clients = [[] for _ in range(self.num_client_managers)]
+        self.selected_clients = [[] for _ in range(self.num_client_clusters)]
 
         for client_num in selected_client_nums:
-            self.selected_clients[client_num % self.num_client_managers].append(client_num)
+            self.selected_clients[client_num % self.num_client_clusters].append(client_num)
         
         return selected_client_nums
 
 
     def train_clients(self, num_epochs: int = 1, batch_size: int = 10) -> None:
         training_futures = []
-        for client_manager_idx, manager_clients in enumerate(self.selected_clients):
-            if len(manager_clients) > 0:
-                training_future = self.client_managers[client_manager_idx].train_clients.remote(
+        for client_cluster_idx, cluster_clients in enumerate(self.selected_clients):
+            if len(cluster_clients) > 0:
+                training_future = self.client_clusters[client_cluster_idx].train_clients.remote(
                     model_params=self.model_params,
-                    selected_clients=manager_clients,
+                    selected_clients=cluster_clients,
                     num_epochs=num_epochs,
                     batch_size=batch_size
                 )
@@ -96,7 +94,7 @@ class Server:
         new_grads = OrderedDict()
 
         for param_tensor, layer in self.model_params.items():
-            new_grads[param_tensor] = torch.zeros(layer.shape).cuda()
+            new_grads[param_tensor] = torch.zeros(layer.shape)
         
         self.grads = new_grads
 
@@ -106,19 +104,19 @@ class Server:
 
         eval_futures = []
         if eval_all_clients:
-            for client_manager in self.client_managers:
-                eval_future = client_manager.eval_model.remote(
+            for client_cluster in self.client_clusters:
+                eval_future = client_cluster.eval_model.remote(
                     model_params=self.model_params,
                     set_to_use=set_to_use
                 )
                 eval_futures.append(eval_future)
         else:
-            for client_manager_idx, manager_clients in enumerate(self.selected_clients):
-                if len(manager_clients) > 0:
-                    eval_future = self.client_managers[client_manager_idx].eval_model.remote(
+            for client_cluster_idx, cluster_clients in enumerate(self.selected_clients):
+                if len(cluster_clients) > 0:
+                    eval_future = self.client_clusters[client_cluster_idx].eval_model.remote(
                         model_params=self.model_params,
                         set_to_use=set_to_use,
-                        selected_clients=manager_clients,
+                        selected_clients=cluster_clients,
                         batch_size=batch_size
                     )
                     eval_futures.append(eval_future)
@@ -129,8 +127,8 @@ class Server:
             while len(eval_futures) > 0:
                 complete, incomplete = ray.wait(eval_futures)
 
-                for manager_metrics in ray.get(complete):
-                    metrics.update(manager_metrics)
+                for cluster_metrics in ray.get(complete):
+                    metrics.update(cluster_metrics)
                     pbar.update(1)
 
                 eval_futures = incomplete
@@ -140,8 +138,8 @@ class Server:
 
     def get_clients_info(self) -> tuple:
         info_futures = []
-        for client_manager in self.client_managers:
-            info_future = client_manager.get_clients_info.remote()
+        for client_cluster in self.client_clusters:
+            info_future = client_cluster.get_clients_info.remote()
             info_futures.append(info_future)
 
         ids = []

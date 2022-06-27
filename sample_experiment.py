@@ -48,7 +48,7 @@ rayleaf.run_experiment(
     seed = 0,
     use_val_set = False,
     num_epochs = 5,
-    gpus_per_client_manager=0.6,
-    num_client_managers=7,
+    gpus_per_client_cluster=0.6,
+    num_client_clusters=7,
     save_model=False
 )

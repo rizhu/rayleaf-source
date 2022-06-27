@@ -8,10 +8,10 @@ import ray
 import torch
 
 
-def make_client_manager(num_gpus: float) -> type:
+def make_client_cluster(num_gpus: float) -> type:
 
     @ray.remote(num_gpus=num_gpus)
-    class ClientManager:
+    class ClientCluster:
         def __init__(self, id: int, seed: float, device: str = "cpu"):
             self.seed = seed
             self.set_seeds(seed)
@@ -118,4 +118,4 @@ def make_client_manager(num_gpus: float) -> type:
             torch.manual_seed(seed)
             torch.cuda.manual_seed(seed)
     
-    return ClientManager
+    return ClientCluster
