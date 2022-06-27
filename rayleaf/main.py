@@ -84,7 +84,8 @@ def run_experiment(
     rayleaf.stage.eval_server(
         server=server,
         num_round=0,
-        eval_set=eval_set
+        eval_set=eval_set,
+        output_dir=output_dir
     )
 
     if type(eval_every) == int:
@@ -109,7 +110,8 @@ def run_experiment(
             rayleaf.stage.eval_server(
                 server=server,
                 num_round=round_number,
-                eval_set=eval_set
+                eval_set=eval_set,
+                output_dir=output_dir
             )
 
     rayleaf.stage.teardown(

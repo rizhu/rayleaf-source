@@ -1,3 +1,10 @@
+import os
+
+from pathlib import Path
+from typing import Union
+
+
+
 """
 Raw client statistic keys
 """
@@ -7,12 +14,13 @@ NUM_CORRECT_KEY = "num_correct"
 NUM_SAMPLES_KEY = "num_samples"
 LOSS_KEY = "loss"
 
+
 """
 Aggregate statistics keys
 """
 AVERAGE_KEY = "average"
 MEDIAN_KEY = "median"
-def PERCENTILE_KEY(percentile: int):
+def PERCENTILE_KEY(percentile: int) -> str:
     last_digit = percentile % 10
     if last_digit == 1:
         suffix = "st"
@@ -24,3 +32,22 @@ def PERCENTILE_KEY(percentile: int):
         suffix = "th"
 
     return f"{percentile}{suffix} percentile"
+
+    
+"""
+Path constants
+"""
+def STATS_DIR(output_dir: Union[str, Path]) -> Path:
+    stats_dir = Path(output_dir, "stats")
+    if not stats_dir.is_dir():
+        os.makedirs(stats_dir, exist_ok=True)
+    
+    return stats_dir
+
+
+def STATS_CSV(stats_dir: Union[str, Path], stat_set: str, aggregate: bool) -> Path:
+    csv_name = f"{stat_set}_stats.csv"
+    if aggregate:
+        csv_name = f"agg_{csv_name}"
+    
+    return Path(stats_dir, csv_name)

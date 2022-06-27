@@ -1,3 +1,7 @@
+import os
+from pathlib import Path
+
+
 import numpy as np
 import pandas as pd
 
@@ -11,15 +15,24 @@ import rayleaf.stats as stats
 def eval_server(
     server: Server,
     num_round: int,
-    eval_set: bool
+    eval_set: bool,
+    output_dir: str
 ):
+    output_dir = Path(output_dir)
+    stats_dir = stats.STATS_DIR(output_dir=output_dir)
+
     train_stats, eval_stats = _eval_clients(server, num_round, eval_set=eval_set)
 
+    train_stats.to_csv(stats.STATS_CSV(stats_dir, "train", aggregate=False), mode="a+", index=False, header=True)
+    eval_stats.to_csv(stats.STATS_CSV(stats_dir, eval_set, aggregate=False), mode="a+", index=False, header=True)
 
     agg_train_stats, agg_eval_stats = _compute_stats(train_stats), _compute_stats(eval_stats)
     _print_aggregate_stats(agg_train_stats, header=f"training accuracy: round {num_round}".title())
     _print_aggregate_stats(agg_eval_stats, header=f"{eval_set} accuracy: round {num_round}".title())
     agg_train_stats[stats.ROUND_NUMBER_KEY], agg_eval_stats[stats.ROUND_NUMBER_KEY] = num_round, num_round
+
+    agg_train_stats.to_csv(stats.STATS_CSV(stats_dir, "train", aggregate=True), mode="a+", index=False, header=True)
+    agg_eval_stats.to_csv(stats.STATS_CSV(stats_dir, eval_set, aggregate=True), mode="a+", index=False, header=True)
 
 
 def _eval_clients(
@@ -58,11 +71,10 @@ def _compute_stats(
     for percentile, value in percentiles.items():
         aggregate_stats[stats.PERCENTILE_KEY(percentile)] = value
 
-    return aggregate_stats
+    return pd.DataFrame([aggregate_stats])
 
 
-def _print_aggregate_stats(stats: dict, header: str):
+def _print_aggregate_stats(stats: pd.DataFrame, header: str):
     logging_utils.log(utils.EVAL_STR.format(header))
 
-    stats_df = pd.DataFrame([stats])
-    logging_utils.log_df(stats_df)
+    logging_utils.log_df(stats)
