@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Union
 
 
+from.graphing import line_plot
+
 
 """
 Raw client statistic keys
@@ -51,3 +53,11 @@ def STATS_CSV(stats_dir: Union[str, Path], stat_set: str, aggregate: bool) -> Pa
         csv_name = f"agg_{csv_name}"
     
     return Path(stats_dir, csv_name)
+
+
+def GRAPHS_DIR(output_dir: Union[str, Path]) -> Path:
+    stats_dir = Path(output_dir, "graphs")
+    if not stats_dir.is_dir():
+        os.makedirs(stats_dir, exist_ok=True)
+    
+    return stats_dir

@@ -4,13 +4,13 @@ from datetime import datetime
 
 
 import numpy as np
-import pandas as pd
 import ray
 import torch
 
 
 # import rayleaf.metrics.writer as metrics_writer
 import rayleaf.stage
+import rayleaf.utils as utils
 import rayleaf.utils.logging_utils as logging_utils
 
 from rayleaf.utils.client_count_utils import client_counts_string, count_selected_clients, online
@@ -113,6 +113,13 @@ def run_experiment(
                 eval_set=eval_set,
                 output_dir=output_dir
             )
+    
+    logging_utils.log(utils.SECTION_STR.format("Post-Simulation"))
+        
+    rayleaf.stage.graph(
+        output_dir=output_dir,
+        eval_set=eval_set
+    )
 
     rayleaf.stage.teardown(
         save_model=save_model,

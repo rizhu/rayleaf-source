@@ -23,16 +23,27 @@ def eval_server(
 
     train_stats, eval_stats = _eval_clients(server, num_round, eval_set=eval_set)
 
-    train_stats.to_csv(stats.STATS_CSV(stats_dir, "train", aggregate=False), mode="a+", index=False, header=True)
-    eval_stats.to_csv(stats.STATS_CSV(stats_dir, eval_set, aggregate=False), mode="a+", index=False, header=True)
+    _append_to_csv(train_stats, stats_dir, "train", aggregate=False)
+    _append_to_csv(eval_stats, stats_dir, eval_set, aggregate=False)
 
     agg_train_stats, agg_eval_stats = _compute_stats(train_stats), _compute_stats(eval_stats)
     _print_aggregate_stats(agg_train_stats, header=f"training accuracy: round {num_round}".title())
     _print_aggregate_stats(agg_eval_stats, header=f"{eval_set} accuracy: round {num_round}".title())
     agg_train_stats[stats.ROUND_NUMBER_KEY], agg_eval_stats[stats.ROUND_NUMBER_KEY] = num_round, num_round
 
-    agg_train_stats.to_csv(stats.STATS_CSV(stats_dir, "train", aggregate=True), mode="a+", index=False, header=True)
-    agg_eval_stats.to_csv(stats.STATS_CSV(stats_dir, eval_set, aggregate=True), mode="a+", index=False, header=True)
+    _append_to_csv(agg_train_stats, stats_dir, "train", aggregate=True)
+    _append_to_csv(agg_eval_stats, stats_dir, eval_set, aggregate=True)
+
+
+def _append_to_csv(
+    stats_df: pd.DataFrame,
+    stats_dir: Path,
+    dataset: str,
+    aggregate: bool
+):
+    csv_file = stats.STATS_CSV(stats_dir, dataset, aggregate=aggregate)
+    append_header = not csv_file.is_file()
+    stats_df.to_csv(csv_file, mode="a+", index=False, header=append_header)
 
 
 def _eval_clients(
