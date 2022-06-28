@@ -5,6 +5,7 @@ pandas
 Pillow
 ray
 scipy
+tabulate
 torch
 torchaudio
 torchvision

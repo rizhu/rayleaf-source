@@ -16,8 +16,6 @@ def teardown(
     server,
     start_time
 ):
-    logging_utils.log(utils.SECTION_STR.format("Post-Simulation"))
-
     if save_model:
         # Save server model
         ckpt_path = Path(output_dir, "checkpoints", dataset)

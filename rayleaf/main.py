@@ -8,8 +8,9 @@ import ray
 import torch
 
 
-import rayleaf.metrics.writer as metrics_writer
+# import rayleaf.metrics.writer as metrics_writer
 import rayleaf.stage
+import rayleaf.utils as utils
 import rayleaf.utils.logging_utils as logging_utils
 
 from rayleaf.utils.client_count_utils import client_counts_string, count_selected_clients, online
@@ -75,21 +76,16 @@ def run_experiment(
     if clients_per_round == -1:
         clients_per_round = len(clients)
 
-    client_ids, client_groups, client_num_samples = server.get_clients_info()
     client_counts = count_selected_clients(online(clients), clients)
     logging_utils.log(f"{len(clients)} total clients: {client_counts_string(client_counts)}")
     logging_utils.log()
 
-    # Initial status
-    stat_writer_fn = metrics_writer.get_stat_writer_function(client_ids, client_groups, client_num_samples, output_dir=output_dir)
-    sys_writer_fn = metrics_writer.get_sys_writer_function(output_dir=output_dir)
-
+    eval_set = "test" if not use_val_set else "val"
     rayleaf.stage.eval_server(
         server=server,
-        client_num_samples=client_num_samples,
-        round=0,
-        stat_writer_fn=stat_writer_fn,
-        use_val_set=use_val_set
+        num_round=0,
+        eval_set=eval_set,
+        output_dir=output_dir
     )
 
     if type(eval_every) == int:
@@ -113,11 +109,17 @@ def run_experiment(
         if round_number in eval_every:
             rayleaf.stage.eval_server(
                 server=server,
-                client_num_samples=client_num_samples,
-                round=round_number,
-                stat_writer_fn=stat_writer_fn,
-                use_val_set=use_val_set
+                num_round=round_number,
+                eval_set=eval_set,
+                output_dir=output_dir
             )
+    
+    logging_utils.log(utils.SECTION_STR.format("Post-Simulation"))
+        
+    rayleaf.stage.graph(
+        output_dir=output_dir,
+        eval_set=eval_set
+    )
 
     rayleaf.stage.teardown(
         save_model=save_model,

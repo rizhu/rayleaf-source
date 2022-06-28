@@ -4,7 +4,7 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 
 import rayleaf.models.utils as model_utils
-from rayleaf.metrics.metrics_constants import ACCURACY_KEY, LOSS_KEY
+import rayleaf.stats as stats
 
 
 class Model(nn.Module):
@@ -60,6 +60,9 @@ class Model(nn.Module):
             correct += model_utils.number_of_correct(preds, y)
 
         test_loss /= num_batches
-        correct /= size
 
-        return {ACCURACY_KEY: correct, LOSS_KEY: test_loss}
+        return {
+            stats.NUM_CORRECT_KEY: correct,
+            stats.NUM_SAMPLES_KEY: size,
+            stats.LOSS_KEY: test_loss
+        }

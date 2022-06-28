@@ -43,10 +43,10 @@ def initialize_resources(
         model_settings = dict(MODEL_SETTINGS[model_path])
         model_settings["seed"] = seed
         model_settings["lr"] = client_lr
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as e:
         logging_utils.log(f"Dataset {dataset} and model {model} is not a valid dataset-model pair.")
         logging_utils.logging_file = experiment_log = None
-        sys.exit()
+        raise e
     
     logging_utils.log(utils.SECTION_STR.format(model_path))
 
