@@ -66,7 +66,8 @@ def run_experiment(
         num_epochs=num_epochs,
         gpus_per_client_cluster=gpus_per_client_cluster,
         num_client_clusters=num_client_clusters,
-        save_model=save_model
+        save_model=save_model,
+        notes = notes
     )
 
     logging_utils.log(utils.SECTION_STR.format("Simulation"))
