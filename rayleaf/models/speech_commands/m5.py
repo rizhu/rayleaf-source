@@ -1,3 +1,6 @@
+from collections import OrderedDict
+
+
 import torch
 import torchaudio
 import torch.nn as nn
@@ -61,7 +64,7 @@ class ClientModel(Model):
         return x
 
 
-    def train_model(self, data: Dataset, num_epochs: int = 1, batch_size: int = 256, device: str = "cpu") -> None:
+    def train_model(self, data: Dataset, num_epochs: int = 1, batch_size: int = 10, device: str = "cpu") -> None:
         pin_memory = device == "cuda"
 
         train_dataloader = DataLoader(data, 
@@ -84,8 +87,9 @@ class ClientModel(Model):
             X, y = X.to(device), y.to(device)
             X = resample(X)
 
-            pred = self.forward(X)
-            loss = self.loss_fn(pred.squeeze(), y)
+            probs = self.forward(X)
+            probs = probs.squeeze(dim=1)
+            loss = self.loss_fn(probs, y)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -133,3 +137,9 @@ class ClientModel(Model):
 
     def generate_dataset(self, data: Dataset) -> Dataset:
         return data
+
+
+    def set_params(self, params: OrderedDict) -> None:
+        for param_tensor, layer in params.items():
+            if "running_mean" not in param_tensor and "running_var" not in param_tensor:
+                self.state_dict()[param_tensor] = layer.clone().detach()
