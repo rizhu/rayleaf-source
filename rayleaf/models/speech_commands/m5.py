@@ -117,12 +117,7 @@ class ClientModel(Model):
 
             probs = self.forward(X)
             probs = probs.squeeze(dim=1)
-            try:
-                test_loss += self.loss_fn(probs, y).item()
-            except Exception as e:
-                print(probs.squeeze())
-                print(y)
-                raise e
+            test_loss += self.loss_fn(probs, y).item()
 
             preds = model_utils.get_predicted_labels(probs)
             correct += model_utils.number_of_correct(preds, y)
