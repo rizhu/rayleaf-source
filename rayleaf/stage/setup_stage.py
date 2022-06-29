@@ -1,11 +1,12 @@
 import importlib
 import os
-import sys
 
 from pathlib import Path
 
 
 import ray
+
+from tqdm import tqdm
 
 
 import rayleaf.utils as utils
@@ -17,6 +18,13 @@ from rayleaf.utils.data_utils import read_data
 from rayleaf.entities.client import Client
 from rayleaf.entities.server import Server
 from rayleaf.models.model_constants import MODEL_SETTINGS
+
+
+def log_experiment_details(**kwargs):
+    logging_utils.log(utils.SECTION_STR.format("Experiment details"))
+    for k, v in kwargs.items():
+        if v is not None:
+            logging_utils.log(f"{str(k)}: {str(v)}")
 
 
 def initialize_resources(
@@ -45,10 +53,8 @@ def initialize_resources(
         model_settings["lr"] = client_lr
     except ModuleNotFoundError as e:
         logging_utils.log(f"Dataset {dataset} and model {model} is not a valid dataset-model pair.")
-        logging_utils.logging_file = experiment_log = None
+        logging_utils.shutdown_log()
         raise e
-    
-    logging_utils.log(utils.SECTION_STR.format(model_path))
 
     return ClientModel, model_settings
 
@@ -66,7 +72,7 @@ def create_entities(
     dataset_dir: str,
     use_val_set: bool
 ):
-    logging_utils.log(f"Spawning {num_client_clusters} ClientClusters using {device} device")
+    logging_utils.log(f"Spawning {num_client_clusters} ClientClusters using {device} device (this may take a while)")
     client_clusters = setup_client_clusters(
         num_client_clusters=num_client_clusters,
         gpus_per_client_cluster=gpus_per_client_cluster,
@@ -187,13 +193,17 @@ def create_clients(
 
             client_num += 1
     
+    num_futures = len(client_creation_futures)
     clients = {}
-    while len(client_creation_futures) > 0:
-        complete, incomplete = ray.wait(client_creation_futures)
+    with tqdm(total=num_futures, leave=False, desc="Creating clients") as pbar:
+        while len(client_creation_futures) > 0:
+            complete, incomplete = ray.wait(client_creation_futures)
 
-        for client_num, ClientType in ray.get(complete):
-            clients[client_num] = ClientType
-        client_creation_futures = incomplete
+            for client_num, ClientType in ray.get(complete):
+                clients[client_num] = ClientType
+                pbar.update(1)
+
+            client_creation_futures = incomplete
 
     return clients
 
@@ -201,7 +211,6 @@ def create_clients(
 def verify_dataset(dataset: str):
     for valid_dataset in utils.DATASETS:
         if valid_dataset in dataset:
-            logging_utils.log(f"Dataset: {valid_dataset}")
             return valid_dataset
 
     raise ValueError(f"Dataset {dataset} is not a valid dataset.")

@@ -36,7 +36,8 @@ def run_experiment(
     num_epochs: int = 1,
     gpus_per_client_cluster: float = 1,
     num_client_clusters: int = NUM_GPUS,
-    save_model: bool = False
+    save_model: bool = False,
+    notes: str = None
 ) -> None:
     start_time = datetime.now()
     
@@ -48,6 +49,27 @@ def run_experiment(
         seed=seed,
     )
 
+    rayleaf.stage.log_experiment_details(
+        dataset=dataset,
+        dataset_dir=dataset_dir,
+        output_dir=output_dir,
+        model=model,
+        num_rounds=num_rounds,
+        eval_every=eval_every,
+        ServerType=ServerType,
+        client_types=client_types,
+        clients_per_round=clients_per_round,
+        client_lr=client_lr,
+        batch_size=batch_size,
+        seed=seed,
+        use_val_set=use_val_set,
+        num_epochs=num_epochs,
+        gpus_per_client_cluster=gpus_per_client_cluster,
+        num_client_clusters=num_client_clusters,
+        save_model=save_model
+    )
+
+    logging_utils.log(utils.SECTION_STR.format("Simulation"))
     ray.init()
 
     # Set the random seed if provided (affects client sampling, and batching)
