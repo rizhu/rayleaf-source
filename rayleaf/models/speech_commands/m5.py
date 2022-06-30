@@ -43,19 +43,25 @@ class ClientModel(Model):
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = self.optimizer(self.parameters(), lr=self.lr)
 
+        self.update_running_params = False
+
 
     def forward(self, x):
         x = self.conv1(x)
-        x = F.relu(self.bn1(x))
+        x = self.bn1(x)
+        x = F.relu(x)
         x = self.pool1(x)
         x = self.conv2(x)
-        x = F.relu(self.bn2(x))
+        x = self.bn2(x)
+        x = F.relu(x)
         x = self.pool2(x)
         x = self.conv3(x)
-        x = F.relu(self.bn3(x))
+        x = self.bn3(x)
+        x = F.relu(x)
         x = self.pool3(x)
         x = self.conv4(x)
-        x = F.relu(self.bn4(x))
+        x = self.bn4(x)
+        x = F.relu(x)
         x = self.pool4(x)
         x = F.avg_pool1d(x, x.shape[-1])
         x = x.permute(0, 2, 1)
@@ -140,6 +146,9 @@ class ClientModel(Model):
 
 
     def set_params(self, params: OrderedDict) -> None:
-        for param_tensor, layer in params.items():
-            if "running_mean" not in param_tensor and "running_var" not in param_tensor:
-                self.state_dict()[param_tensor] = layer.clone().detach()
+        if self.update_running_params:
+            super(ClientModel, self).set_params(params)
+        else:
+            for param_tensor, layer in params.items():
+                if "running_mean" not in param_tensor and "running_var" not in param_tensor:
+                    self.state_dict()[param_tensor] = layer.clone().detach()
