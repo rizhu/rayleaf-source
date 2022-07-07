@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 
@@ -16,12 +15,13 @@ def eval_server(
     server: Server,
     num_round: int,
     eval_set: bool,
-    output_dir: str
+    output_dir: str,
+    batch_size: int
 ):
     output_dir = Path(output_dir)
     stats_dir = stats.STATS_DIR(output_dir=output_dir)
 
-    train_stats, eval_stats = _eval_clients(server, num_round, eval_set=eval_set)
+    train_stats, eval_stats = _eval_clients(server, num_round, eval_set=eval_set, batch_size=batch_size)
 
     _append_to_csv(train_stats, stats_dir, "train", aggregate=False)
     _append_to_csv(eval_stats, stats_dir, eval_set, aggregate=False)
@@ -49,10 +49,11 @@ def _append_to_csv(
 def _eval_clients(
     server: Server,
     num_round: int,
-    eval_set: str
+    eval_set: str,
+    batch_size: int
 ):
-    train_stats = server.eval_model(set_to_use="train")
-    eval_stats = server.eval_model(set_to_use=eval_set)
+    train_stats = server.eval_model(set_to_use="train", batch_size=batch_size)
+    eval_stats = server.eval_model(set_to_use=eval_set, batch_size=batch_size)
 
     train_stats, eval_stats = pd.DataFrame(train_stats), pd.DataFrame(eval_stats)
     train_stats[stats.ROUND_NUMBER_KEY], eval_stats[stats.ROUND_NUMBER_KEY] = num_round, num_round

@@ -43,7 +43,9 @@ class ClientModel(Model):
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = self.optimizer(self.parameters(), lr=self.lr)
 
-        self.update_running_params = False
+        self.collate_fn = sc_utils.make_collate_fn(frequency=ORIGINAL_FREQ)
+
+        self.update_running_params = True
 
 
     def forward(self, x):
@@ -77,7 +79,7 @@ class ClientModel(Model):
             batch_size=batch_size, 
             shuffle=True, 
             drop_last=False,
-            collate_fn=sc_utils.collate_fn,
+            collate_fn=self.collate_fn,
             pin_memory=pin_memory
         )
 
@@ -110,7 +112,7 @@ class ClientModel(Model):
             batch_size=batch_size, 
             shuffle=False, 
             drop_last=False,
-            collate_fn=sc_utils.collate_fn,
+            collate_fn=self.collate_fn,
             pin_memory=pin_memory
         )
 

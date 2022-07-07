@@ -4,6 +4,7 @@ Based on https://pytorch.org/tutorials/intermediate/speech_command_classificatio
 
 
 import torch
+import torch.nn.functional as F
 
 
 LABELS = [
@@ -53,20 +54,21 @@ def index_to_label(index):
     return LABELS[index]
 
 
-def pad_sequence(batch):
-    batch = [item.t() for item in batch]
-    batch = torch.nn.utils.rnn.pad_sequence(batch, batch_first=True, padding_value=0.)
-    return batch.permute(0, 2, 1)
+def pad_waveform(waveform, frequency: int):
+    return F.pad(waveform, (0, frequency - waveform.shape[-1]), mode="constant", value=0.0)
 
 
-def collate_fn(batch):
-    tensors, targets = [], []
+def make_collate_fn(frequency: int):
+    def collate_fn(batch):
+        tensors, targets = [], []
 
-    for waveform, _, label, *_ in batch:
-        tensors += [waveform]
-        targets += [label_to_index(label)]
+        for waveform, _, label, *_ in batch:
+            tensors.append(pad_waveform(waveform, frequency))
+            targets.append(label_to_index(label))
 
-    tensors = pad_sequence(tensors)
-    targets = torch.stack(targets)
+        tensors = torch.stack(tensors)
+        targets = torch.stack(targets)
 
-    return tensors, targets
+        return tensors, targets
+    
+    return collate_fn
