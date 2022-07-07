@@ -1,9 +1,0 @@
-Additional Information
-======================
-
-.. toctree::
-   :maxdepth: 3
-   :hidden:
-
-   contact
-   citations
