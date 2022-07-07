@@ -1,7 +1,11 @@
+from collections import OrderedDict
+
+
 import torch
 
 from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
+
 
 import rayleaf.models.utils as model_utils
 import rayleaf.stats as stats
@@ -34,8 +38,8 @@ class Model(nn.Module):
         for X, y in dataloader:
             X, y = X.to(device), y.to(device)
 
-            pred = self.forward(X)
-            loss = self.loss_fn(pred, y)
+            probs = self.forward(X)
+            loss = self.loss_fn(probs, y)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -66,3 +70,11 @@ class Model(nn.Module):
             stats.NUM_SAMPLES_KEY: size,
             stats.LOSS_KEY: test_loss
         }
+
+
+    def get_params(self) -> OrderedDict:
+        return self.state_dict()
+
+
+    def set_params(self, params: OrderedDict) -> None:
+        self.load_state_dict(params)

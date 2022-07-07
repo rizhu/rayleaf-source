@@ -8,7 +8,6 @@ import ray
 import torch
 
 
-# import rayleaf.metrics.writer as metrics_writer
 import rayleaf.stage
 import rayleaf.utils as utils
 import rayleaf.utils.logging_utils as logging_utils
@@ -108,7 +107,8 @@ def run_experiment(
         server=server,
         num_round=0,
         eval_set=eval_set,
-        output_dir=output_dir
+        output_dir=output_dir,
+        batch_size=batch_size
     )
 
     if type(eval_every) == int:
@@ -134,7 +134,8 @@ def run_experiment(
                 server=server,
                 num_round=round_number,
                 eval_set=eval_set,
-                output_dir=output_dir
+                output_dir=output_dir,
+                batch_size=batch_size
             )
     
     logging_utils.log(utils.SECTION_STR.format("Post-Simulation"))

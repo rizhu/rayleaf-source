@@ -1,3 +1,6 @@
+from collections import OrderedDict
+
+
 import torch
 import torchaudio
 import torch.nn as nn
@@ -40,19 +43,27 @@ class ClientModel(Model):
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = self.optimizer(self.parameters(), lr=self.lr)
 
+        self.collate_fn = sc_utils.make_collate_fn(frequency=ORIGINAL_FREQ)
+
+        self.update_running_params = True
+
 
     def forward(self, x):
         x = self.conv1(x)
-        x = F.relu(self.bn1(x))
+        x = self.bn1(x)
+        x = F.relu(x)
         x = self.pool1(x)
         x = self.conv2(x)
-        x = F.relu(self.bn2(x))
+        x = self.bn2(x)
+        x = F.relu(x)
         x = self.pool2(x)
         x = self.conv3(x)
-        x = F.relu(self.bn3(x))
+        x = self.bn3(x)
+        x = F.relu(x)
         x = self.pool3(x)
         x = self.conv4(x)
-        x = F.relu(self.bn4(x))
+        x = self.bn4(x)
+        x = F.relu(x)
         x = self.pool4(x)
         x = F.avg_pool1d(x, x.shape[-1])
         x = x.permute(0, 2, 1)
@@ -61,14 +72,14 @@ class ClientModel(Model):
         return x
 
 
-    def train_model(self, data: Dataset, num_epochs: int = 1, batch_size: int = 256, device: str = "cpu") -> None:
+    def train_model(self, data: Dataset, num_epochs: int = 1, batch_size: int = 10, device: str = "cpu") -> None:
         pin_memory = device == "cuda"
 
         train_dataloader = DataLoader(data, 
             batch_size=batch_size, 
             shuffle=True, 
             drop_last=False,
-            collate_fn=sc_utils.collate_fn,
+            collate_fn=self.collate_fn,
             pin_memory=pin_memory
         )
 
@@ -84,8 +95,9 @@ class ClientModel(Model):
             X, y = X.to(device), y.to(device)
             X = resample(X)
 
-            pred = self.forward(X)
-            loss = self.loss_fn(pred.squeeze(), y)
+            probs = self.forward(X)
+            probs = probs.squeeze(dim=1)
+            loss = self.loss_fn(probs, y)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -100,7 +112,7 @@ class ClientModel(Model):
             batch_size=batch_size, 
             shuffle=False, 
             drop_last=False,
-            collate_fn=sc_utils.collate_fn,
+            collate_fn=self.collate_fn,
             pin_memory=pin_memory
         )
 
@@ -133,3 +145,12 @@ class ClientModel(Model):
 
     def generate_dataset(self, data: Dataset) -> Dataset:
         return data
+
+
+    def set_params(self, params: OrderedDict) -> None:
+        if self.update_running_params:
+            super(ClientModel, self).set_params(params)
+        else:
+            for param_tensor, layer in params.items():
+                if "running_mean" not in param_tensor and "running_var" not in param_tensor:
+                    self.state_dict()[param_tensor] = layer.clone().detach()

@@ -7,6 +7,7 @@ import torch
 
 from tqdm import tqdm
 
+
 class Server:
     
     def __init__(self, model_params: OrderedDict, client_clusters: list) -> None:
@@ -104,7 +105,8 @@ class Server:
             for client_cluster in self.client_clusters:
                 eval_future = client_cluster.eval_model.remote(
                     model_params=self.model_params,
-                    set_to_use=set_to_use
+                    set_to_use=set_to_use,
+                    batch_size=batch_size 
                 )
                 eval_futures.append(eval_future)
         else:

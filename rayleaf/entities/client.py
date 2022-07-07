@@ -88,12 +88,12 @@ class Client:
 
     @property
     def model_params(self) -> OrderedDict:
-        return self.model.state_dict()
+        return self.model.get_params()
 
 
     @model_params.setter
     def model_params(self, params: OrderedDict) -> None:
-        self.model.load_state_dict(params)
+        self.model.set_params(params)
 
 
     @property
