@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rayleaf"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Richard Hu", email="r.hu@berkeley.edu" },
 ]
@@ -20,6 +20,7 @@ classifiers = [
 dependencies = [
     "matplotlib>=3.5.2",
     "numpy>=1.23.0",
+    "pandas>=1.4.3",
     "ray>=1.13.0",
     "tabulate>=0.8.10",
     "torch>=1.12.0",
