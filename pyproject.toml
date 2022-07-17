@@ -2,9 +2,12 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+ignore-vcs = true
+
 [project]
 name = "rayleaf"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
   { name="Richard Hu", email="r.hu@berkeley.edu" },
 ]
