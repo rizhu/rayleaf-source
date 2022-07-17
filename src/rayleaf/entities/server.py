@@ -1,6 +1,3 @@
-from collections import OrderedDict
-
-
 import numpy as np
 import ray
 import torch
@@ -8,9 +5,12 @@ import torch
 from tqdm import tqdm
 
 
+import rayleaf.entities.constants as constants
+
+
 class Server:
     
-    def __init__(self, model_params: OrderedDict, client_clusters: list) -> None:
+    def __init__(self, model_params: list, client_clusters: list) -> None:
         self.model_params = model_params
         self.reset_grads()
 
@@ -19,6 +19,9 @@ class Server:
 
         self.updates = []
         self.selected_clients = [[] for _ in range(self.num_client_clusters)]
+
+        self.clients_profiled = set()
+        self.client_flops = []
 
         self.init()
 
@@ -65,36 +68,51 @@ class Server:
         self.reset_model()
 
         total_weight = 0
-        for (client_samples, client_model) in self.updates:
+        for update in self.updates:
+            client_samples = update[constants.NUM_SAMPLES_KEY]
+            client_model = update[constants.UPDATE_KEY]
+
             total_weight += client_samples
 
-            for param_tensor, layer in client_model.items():
-                self.model_params[param_tensor] += client_samples * layer
+            for i, layer in enumerate(client_model):
+                self.model_params[i] += client_samples * layer
 
-        for param_tensor in self.model_params.keys():
-            self.model_params[param_tensor] = (self.model_params[param_tensor] / total_weight).to(self.model_params[param_tensor].dtype)
+        for i, layer in enumerate(self.model_params):
+            self.model_params[i] = (layer / total_weight).to(layer.dtype)
+
 
     @torch.no_grad()
     def _update_model(self) -> None:
         self.update_model()
 
+        for update in self.updates:
+            client_id = update[constants.CLIENT_ID_KEY]
+
+            if client_id not in self.clients_profiled:
+                self.clients_profiled.add(client_id)
+
+                client_samples = update[constants.NUM_SAMPLES_KEY]
+                client_flops = update[constants.FLOPS_KEY]
+
+                self.client_flops.append(
+                    {
+                        constants.CLIENT_ID_KEY: client_id,
+                        constants.FLOPS_KEY: client_flops,
+                        constants.NUM_SAMPLES_KEY: client_samples
+                    }
+                )
+
         self.updates.clear()
 
 
     def reset_model(self) -> None:
-        new_model_params = OrderedDict()
-
-        for param_tensor in self.model_params.keys():
-            new_model_params[param_tensor] = 0
+        new_model_params = [0 for _ in range(len(self.model_params))]
         
         self.model_params = new_model_params
     
 
     def reset_grads(self) -> None:
-        new_grads = OrderedDict()
-
-        for param_tensor, layer in self.model_params.items():
-            new_grads[param_tensor] = torch.zeros(layer.shape)
+        new_grads = [0 for _ in range(len(self.model_params))]
         
         self.grads = new_grads
 
@@ -163,20 +181,20 @@ class Server:
 
 
     @property
-    def model_params(self) -> OrderedDict:
+    def model_params(self) -> list:
         return self._model_params
 
     
     @model_params.setter
-    def model_params(self, params: OrderedDict) -> None:
+    def model_params(self, params: list) -> None:
         self._model_params = params
 
 
     @property
-    def grads(self) -> OrderedDict:
+    def grads(self) -> list:
         return self._grads
 
     
     @grads.setter
-    def grads(self, grads: OrderedDict) -> None:
+    def grads(self, grads: list) -> None:
         self._grads = grads

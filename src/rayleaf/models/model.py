@@ -1,8 +1,6 @@
-from collections import OrderedDict
-
-
 import torch
 
+from thop import profile
 from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 
@@ -20,6 +18,8 @@ class Model(nn.Module):
         self.seed = seed
         self.optimizer = optimizer
 
+        self.flops = 0
+
 
     def generate_dataset(self, data: dict) -> Dataset:
         return None
@@ -30,13 +30,21 @@ class Model(nn.Module):
 
         self.train()
         for _ in range(num_epochs):
-            self.run_epoch(train_dataloader, device)
+            self._run_epoch(train_dataloader, device)
+
+        return self.flops
 
 
-    def run_epoch(self, dataloader: DataLoader, device: str = "cpu") -> None:
+    def _run_epoch(self, dataloader: DataLoader, device: str = "cpu") -> None:
+
+        flops_counted = self.flops > 0
 
         for X, y in dataloader:
             X, y = X.to(device), y.to(device)
+
+            if not flops_counted:
+                macs, _ = profile(self, inputs=(X, ), verbose=False)
+                self.flops += macs * 2
 
             probs = self.forward(X)
             loss = self.loss_fn(probs, y)
@@ -72,9 +80,11 @@ class Model(nn.Module):
         }
 
 
-    def get_params(self) -> OrderedDict:
-        return self.state_dict()
+    def get_params(self) -> list:
+        return list(self.parameters())
 
 
-    def set_params(self, params: OrderedDict) -> None:
-        self.load_state_dict(params)
+    def set_params(self, params: list) -> None:
+        with torch.no_grad():
+            for i, param in enumerate(self.get_params()):
+                param.copy_(params[i])

@@ -1,6 +1,3 @@
-from collections import OrderedDict
-
-
 import torch
 import torchaudio
 import torch.nn as nn
@@ -39,6 +36,8 @@ class ClientModel(Model):
         self.bn4 = nn.BatchNorm1d(num_features=2 * 32)
         self.pool4 = nn.MaxPool1d(kernel_size=4)
         self.fc1 = nn.Linear(2 * 32, self.num_classes)
+
+        self.bn_param_indices = set([2, 3, 6, 7, 10, 11, 14, 15])
 
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = self.optimizer(self.parameters(), lr=self.lr)
@@ -85,10 +84,10 @@ class ClientModel(Model):
 
         self.train()
         for _ in range(num_epochs):
-            self.run_epoch(train_dataloader, device)
+            self._run_epoch(train_dataloader, device)
 
 
-    def run_epoch(self, dataloader: DataLoader, device: str = "cpu") -> None:
+    def _run_epoch(self, dataloader: DataLoader, device: str = "cpu") -> None:
         resample = torchaudio.transforms.Resample(orig_freq=ORIGINAL_FREQ, new_freq=RESAMPLE_FREQ).to(device)
 
         for X, y in dataloader:
@@ -147,10 +146,15 @@ class ClientModel(Model):
         return data
 
 
-    def set_params(self, params: OrderedDict) -> None:
+    def set_params(self, params: list) -> None:
         if self.update_running_params:
             super(ClientModel, self).set_params(params)
         else:
-            for param_tensor, layer in params.items():
-                if "running_mean" not in param_tensor and "running_var" not in param_tensor:
-                    self.state_dict()[param_tensor] = layer.clone().detach()
+            with torch.no_grad():
+                for i, layer in enumerate(params):
+                    if i not in self.bn_param_indices:
+                        self.get_params()[i].copy_(layer)
+                        
+            # for param_tensor, layer in params.items():
+            #     if "running_mean" not in param_tensor and "running_var" not in param_tensor:
+            #         self.state_dict()[param_tensor] = layer.clone().detach()

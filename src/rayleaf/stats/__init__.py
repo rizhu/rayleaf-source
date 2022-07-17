@@ -55,6 +55,12 @@ def STATS_CSV(stats_dir: Union[str, Path], stat_set: str, aggregate: bool) -> Pa
     return Path(stats_dir, csv_name)
 
 
+def FLOPS_CSV(stats_dir: Union[str, Path]) -> Path:
+    csv_name = "client_flop_counts.csv"
+
+    return Path(stats_dir, csv_name)
+
+
 def GRAPHS_DIR(output_dir: Union[str, Path]) -> Path:
     stats_dir = Path(output_dir, "graphs")
     if not stats_dir.is_dir():

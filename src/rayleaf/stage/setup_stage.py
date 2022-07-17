@@ -85,7 +85,7 @@ def create_entities(
 
     # Create server
     verify_server_input(ServerType=ServerType)
-    server = ServerType(model_params=client_model.state_dict(), client_clusters=client_clusters)
+    server = ServerType(model_params=list(client_model.parameters()), client_clusters=client_clusters)
 
     # Create clients
     clients = setup_clients(

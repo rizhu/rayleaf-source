@@ -1,6 +1,4 @@
-from collections import OrderedDict
-
-
+import rayleaf.entities.constants as constants
 import rayleaf.stats as stats
 
 
@@ -41,24 +39,31 @@ class Client:
 
 
     def train(self):
-        self.train_model()
+        flops = self.train_model()
 
-        return self.num_train_samples, self.model_params
+        return {
+            constants.CLIENT_ID_KEY: self.id,
+            constants.NUM_SAMPLES_KEY: self.num_train_samples,
+            constants.UPDATE_KEY: self.model_params,
+            constants.FLOPS_KEY: flops
+        }
 
 
     def train_model(self, compute_grads: bool = False):
         if compute_grads:
-            self.grads = OrderedDict()
-            for param_tensor, layer in self.model_params.items():
-                self.grads[param_tensor] = layer.detach().clone()
+            self.grads = []
+            for layer in self.model_params:
+                self.grads.append(layer.detach().clone())
 
         self.model = self.model.to(self.device)
-        self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
+        flops = self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
         self.model = self.model.to("cpu")
 
         if compute_grads:
-            for param_tensor, layer in self.model_params.items():
-                self.grads[param_tensor] = self.model_params[param_tensor] - self.grads[param_tensor]
+            for i, layer in enumerate(self.model_params):
+                self.grads[i] = layer - self.grads[i]
+
+        return flops
 
 
     def _train(self, num_epochs: int = 1, batch_size: int = 10) -> tuple:
@@ -87,22 +92,22 @@ class Client:
 
 
     @property
-    def model_params(self) -> OrderedDict:
+    def model_params(self) -> list:
         return self.model.get_params()
 
 
     @model_params.setter
-    def model_params(self, params: OrderedDict) -> None:
+    def model_params(self, params: list) -> None:
         self.model.set_params(params)
 
 
     @property
-    def grads(self) -> OrderedDict:
+    def grads(self) -> list:
         return self._grads
 
     
     @grads.setter
-    def grads(self, grads: OrderedDict) -> None:
+    def grads(self, grads: list) -> None:
         self._grads = grads
 
 

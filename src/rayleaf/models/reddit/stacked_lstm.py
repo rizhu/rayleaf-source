@@ -169,7 +169,7 @@ class ClientModel(Model):
 
             yield (input_data, target_data, input_lengths, batched_mask)
 
-    def run_epoch(self, data, batch_size=5):
+    def _run_epoch(self, data, batch_size=5):
         state = None
 
         fetches = {
