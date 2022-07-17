@@ -1,3 +1,6 @@
+import torch
+
+
 import rayleaf.entities.constants as constants
 import rayleaf.stats as stats
 
@@ -20,6 +23,7 @@ class Client:
 
         self.device = device
         self.model = model(**model_settings)
+        self.layer_shapes = [layer.shape for layer in self.model_params]
 
         self.id = client_id
         self.group = group
@@ -31,6 +35,8 @@ class Client:
         self._num_eval_samples = len(self.eval_data) if self.eval_data is not None else 0
         self._num_samples = self.num_train_samples + self.num_eval_samples
 
+        self.flops = 0
+
         self.init()
 
     
@@ -39,14 +45,9 @@ class Client:
 
 
     def train(self):
-        flops = self.train_model()
+        self.train_model()
 
-        return {
-            constants.CLIENT_ID_KEY: self.id,
-            constants.NUM_SAMPLES_KEY: self.num_train_samples,
-            constants.UPDATE_KEY: self.model_params,
-            constants.FLOPS_KEY: flops
-        }
+        return self.model_params
 
 
     def train_model(self, compute_grads: bool = False):
@@ -56,21 +57,30 @@ class Client:
                 self.grads.append(layer.detach().clone())
 
         self.model = self.model.to(self.device)
-        flops = self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
+        self.flops = self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
         self.model = self.model.to("cpu")
 
         if compute_grads:
             for i, layer in enumerate(self.model_params):
                 self.grads[i] = layer - self.grads[i]
 
-        return flops
-
 
     def _train(self, num_epochs: int = 1, batch_size: int = 10) -> tuple:
         self.num_epochs = num_epochs
         self.batch_size = batch_size
 
-        training_result = self.train()
+        update = self.train()
+
+        training_result = {
+            constants.CLIENT_ID_KEY: self.id,
+            constants.NUM_SAMPLES_KEY: self.num_train_samples,
+            constants.FLOPS_KEY: self.flops
+        }
+
+        if type(update) == dict:
+            training_result.update(update)
+        else:
+            training_result[constants.UPDATE_KEY] = update
 
         return training_result
 
@@ -124,3 +134,33 @@ class Client:
     @property
     def num_samples(self) -> int:
         return self._num_samples
+
+
+    def param_like_zeros(self, dtype = torch.float32) -> list:
+        res = []
+        for shape in self.layer_shapes:
+            res.append(torch.zeros(shape))
+        
+        return res.to(dtype)
+    
+
+    def param_like_const(self, value: float = 1, dtype = torch.float32) -> list:
+        res = []
+
+        for shape in self.layer_shapes:
+            res.append(torch.ones(shape) * value)
+        
+        return res.to(dtype)
+
+
+    def param_like_ones(self, dtype = torch.float32) -> list:
+        return self.param_like_const(dtype=dtype)
+    
+
+    def param_like_normal(self, mean: float = 0, std: float = 1, dtype = torch.float32) -> list:
+        res = []
+
+        for shape in self.layer_shapes:
+            res.append(torch.normal(mean=torch.ones(shape) * mean, std=torch.ones(shape) * std))
+        
+        return res.to(dtype)

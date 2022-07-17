@@ -12,7 +12,7 @@ class Server:
     
     def __init__(self, model_params: list, client_clusters: list) -> None:
         self.model_params = model_params
-        self.reset_grads()
+        self.layer_shapes = [layer.shape for layer in self.model_params]
 
         self.client_clusters = client_clusters
         self.num_client_clusters = len(client_clusters)
@@ -64,28 +64,40 @@ class Server:
                 training_futures = incomplete
 
 
+    def update_layer(self, current_params, updates: list, client_num_samples: list, num_clients: int):
+        new_layer = 0
+
+        for i in range(num_clients):
+            new_layer += updates[i] * client_num_samples[i]
+        
+        return new_layer / self.num_train_samples
+
+
     def update_model(self) -> None:
-        self.reset_model()
+        n = len(self.updates)
 
-        total_weight = 0
+        client_num_samples = []
         for update in self.updates:
-            client_samples = update[constants.NUM_SAMPLES_KEY]
-            client_model = update[constants.UPDATE_KEY]
-
-            total_weight += client_samples
-
-            for i, layer in enumerate(client_model):
-                self.model_params[i] += client_samples * layer
+            client_num_samples.append(update[constants.NUM_SAMPLES_KEY])
 
         for i, layer in enumerate(self.model_params):
-            self.model_params[i] = (layer / total_weight).to(layer.dtype)
+            layer_updates = []
+            for update in self.updates:
+                layer_updates.append(update[constants.UPDATE_KEY][i])
+            
+            self.model_params[i] = self.update_layer(
+                self.model_params[i].clone().detach(),
+                layer_updates,
+                client_num_samples.copy(), n
+            ).to(layer.dtype)
 
 
     @torch.no_grad()
     def _update_model(self) -> None:
-        self.update_model()
-
+        self.num_train_samples = 0
         for update in self.updates:
+            self.num_train_samples += update[constants.NUM_SAMPLES_KEY]
+
             client_id = update[constants.CLIENT_ID_KEY]
 
             if client_id not in self.clients_profiled:
@@ -102,6 +114,7 @@ class Server:
                     }
                 )
 
+        self.update_model()
         self.updates.clear()
 
 
@@ -109,12 +122,6 @@ class Server:
         new_model_params = [0 for _ in range(len(self.model_params))]
         
         self.model_params = new_model_params
-    
-
-    def reset_grads(self) -> None:
-        new_grads = [0 for _ in range(len(self.model_params))]
-        
-        self.grads = new_grads
 
 
     def eval_model(self, eval_all_clients: bool = True, set_to_use: str = "test", batch_size: int = 10) -> dict:
@@ -190,11 +197,31 @@ class Server:
         self._model_params = params
 
 
-    @property
-    def grads(self) -> list:
-        return self._grads
-
+    def param_like_zeros(self, dtype = torch.float32) -> list:
+        res = []
+        for shape in self.layer_shapes:
+            res.append(torch.zeros(shape))
+        
+        return res.to(dtype)
     
-    @grads.setter
-    def grads(self, grads: list) -> None:
-        self._grads = grads
+
+    def param_like_const(self, value: float = 1, dtype = torch.float32) -> list:
+        res = []
+
+        for shape in self.layer_shapes:
+            res.append(torch.ones(shape) * value)
+        
+        return res.to(dtype)
+
+
+    def param_like_ones(self, dtype = torch.float32) -> list:
+        return self.param_like_const(dtype=dtype)
+    
+
+    def param_like_normal(self, mean: float = 0, std: float = 1, dtype = torch.float32) -> list:
+        res = []
+
+        for shape in self.layer_shapes:
+            res.append(torch.normal(mean=torch.ones(shape) * mean, std=torch.ones(shape) * std))
+        
+        return res.to(dtype)
