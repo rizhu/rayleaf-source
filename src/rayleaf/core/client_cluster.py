@@ -1,7 +1,5 @@
 import random
 
-from collections import OrderedDict
-
 
 import numpy as np
 import ray
@@ -48,7 +46,7 @@ def make_client_cluster(num_gpus: float) -> type:
         
         def train_clients(
             self,
-            model_params: OrderedDict,
+            model_params: list,
             selected_clients: list = None,
             num_epochs: int = 1,
             batch_size: int = 10
@@ -60,16 +58,16 @@ def make_client_cluster(num_gpus: float) -> type:
 
             for client in clients_to_train:
                 client.model_params = model_params
-                num_samples, update = client._train(num_epochs, batch_size)
+                training_result = client._train(num_epochs, batch_size)
 
-                updates.append((num_samples, update))
+                updates.append(training_result)
             
             return updates
 
 
         def eval_model(
             self,
-            model_params: OrderedDict,
+            model_params: list,
             selected_clients: list = None,
             set_to_use: str = "test",
             batch_size: int = 10
