@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 import torch
 import torchaudio
 import torch.nn as nn
@@ -142,7 +145,7 @@ class ClientModel(Model):
         }
 
 
-    def generate_dataset(self, data: Dataset) -> Dataset:
+    def generate_dataset(self, data: Dataset, dataset_dir: Path) -> Dataset:
         return data
 
 
@@ -154,7 +157,3 @@ class ClientModel(Model):
                 for i, layer in enumerate(params):
                     if i not in self.bn_param_indices:
                         self.get_params()[i].copy_(layer)
-                        
-            # for param_tensor, layer in params.items():
-            #     if "running_mean" not in param_tensor and "running_var" not in param_tensor:
-            #         self.state_dict()[param_tensor] = layer.clone().detach()

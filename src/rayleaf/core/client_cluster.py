@@ -1,5 +1,7 @@
 import random
 
+from pathlib import Path
+
 
 import numpy as np
 import ray
@@ -24,6 +26,7 @@ def make_client_cluster(num_gpus: float) -> type:
             ClientType: type,
             client_num: int,
             client_id: str,
+            dataset_dir: Path,
             train_data: dict,
             eval_data: dict,
             model: type,
@@ -33,6 +36,7 @@ def make_client_cluster(num_gpus: float) -> type:
             self.clients[client_num] = ClientType(
                 client_num,
                 client_id,
+                dataset_dir,
                 train_data,
                 eval_data,
                 model,

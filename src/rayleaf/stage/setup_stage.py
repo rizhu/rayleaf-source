@@ -131,6 +131,8 @@ def setup_clients(
     Return:
         all_clients: list of Client objects.
     """
+    dataset_dir = Path(dataset_dir)
+
     eval_set = "test" if not use_val_set else "val"
     train_data_dir = Path(dataset_dir, "data", "train")
     test_data_dir = Path(dataset_dir, "data", eval_set)
@@ -147,6 +149,7 @@ def setup_clients(
         client_clusters=client_clusters,
         users=users,
         groups=groups,
+        dataset_dir=dataset_dir,
         train_data=train_data,
         eval_data=test_data,
         model=model,
@@ -161,6 +164,7 @@ def create_clients(
     client_clusters: list,
     users: list,
     groups: list,
+    dataset_dir: Path,
     train_data: dict,
     eval_data: dict, 
     model: type,
@@ -183,6 +187,7 @@ def create_clients(
                 ClientType=ClientType,
                 client_num=client_num,
                 client_id=u,
+                dataset_dir=dataset_dir,
                 train_data=train_data[u],
                 eval_data=eval_data[u],
                 model=model,
