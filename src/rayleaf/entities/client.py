@@ -166,3 +166,11 @@ class Client:
             res.append(torch.normal(mean=torch.ones(shape) * mean, std=torch.ones(shape) * std))
         
         return res.to(dtype)
+
+
+    def collect_metric(self, metric, metric_name):
+        pass
+
+
+    def collect_metric_once(self, metric, metric_name):
+        pass
