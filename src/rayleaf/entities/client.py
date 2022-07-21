@@ -1,3 +1,4 @@
+from pathlib import Path
 import torch
 
 
@@ -11,6 +12,7 @@ class Client:
             self,
             client_num: int,
             client_id: str,
+            dataset_dir: Path,
             train_data: dict,
             eval_data: dict,
             model: type,
@@ -28,8 +30,8 @@ class Client:
         self.id = client_id
         self.group = group
 
-        self.train_data = self.model.generate_dataset(train_data)
-        self.eval_data = self.model.generate_dataset(eval_data)
+        self.train_data = self.model.generate_dataset(train_data, dataset_dir)
+        self.eval_data = self.model.generate_dataset(eval_data, dataset_dir)
 
         self._num_train_samples = len(self.train_data) if self.train_data is not None else 0
         self._num_eval_samples = len(self.eval_data) if self.eval_data is not None else 0

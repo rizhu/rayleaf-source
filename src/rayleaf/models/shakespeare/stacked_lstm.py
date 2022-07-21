@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 from torch import nn, Tensor
 from torch.utils.data import TensorDataset
 
@@ -21,11 +24,13 @@ class ClientModel(Model):
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = self.optimizer(self.parameters(), lr=self.lr)
 
-    def generate_dataset(self, data: dict) -> TensorDataset:
+
+    def generate_dataset(self, data: dict, dataset_dir: Path) -> TensorDataset:
         return TensorDataset(
             Tensor([word_to_indices(x) for x in data["x"]]).long(),
             Tensor([letter_to_index(y) for y in data["y"]]).long()
         )
+
 
     def forward(self, x):
         embedding = self.embedding(x)

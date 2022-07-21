@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 import torch
 
 from thop import profile
@@ -21,7 +24,7 @@ class Model(nn.Module):
         self.flops = 0
 
 
-    def generate_dataset(self, data: dict) -> Dataset:
+    def generate_dataset(self, data: dict, dataset_dir: Path) -> Dataset:
         return None
 
 
