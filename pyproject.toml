@@ -7,7 +7,7 @@ ignore-vcs = true
 
 [project]
 name = "rayleaf"
-version = "0.0.3"
+version = "0.0.4"
 authors = [
   { name="Richard Hu", email="r.hu@berkeley.edu" },
 ]
