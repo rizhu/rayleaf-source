@@ -62,6 +62,8 @@ class Server:
                     pbar.update(1)
 
                 training_futures = incomplete
+        
+        return self.updates
 
 
     def update_layer(self, current_params, updates: list, client_num_samples: list, num_clients: int):
@@ -97,22 +99,6 @@ class Server:
         self.num_train_samples = 0
         for update in self.updates:
             self.num_train_samples += update[constants.NUM_SAMPLES_KEY]
-
-            client_id = update[constants.CLIENT_ID_KEY]
-
-            if client_id not in self.clients_profiled:
-                self.clients_profiled.add(client_id)
-
-                client_samples = update[constants.NUM_SAMPLES_KEY]
-                client_flops = update[constants.FLOPS_KEY]
-
-                self.client_flops.append(
-                    {
-                        constants.CLIENT_ID_KEY: client_id,
-                        constants.FLOPS_KEY: client_flops,
-                        constants.NUM_SAMPLES_KEY: client_samples
-                    }
-                )
 
         self.update_model()
         self.updates.clear()

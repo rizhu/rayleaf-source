@@ -121,9 +121,10 @@ def run_experiment(
             server=server,
             clients=clients,
             clients_per_round=clients_per_round,
+            output_dir=output_dir,
             num_epochs=num_epochs,
             batch_size=batch_size,
-            round=round_number,
+            curr_round=round_number,
             num_rounds=num_rounds,
             log_progress=True
         )

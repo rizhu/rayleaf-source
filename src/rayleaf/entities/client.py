@@ -37,7 +37,7 @@ class Client:
         self._num_eval_samples = len(self.eval_data) if self.eval_data is not None else 0
         self._num_samples = self.num_train_samples + self.num_eval_samples
 
-        self.flops = 0
+        self.metrics = {}
 
         self.init()
 
@@ -59,8 +59,10 @@ class Client:
                 self.grads.append(layer.detach().clone())
 
         self.model = self.model.to(self.device)
-        self.flops = self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
+        flops = self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
         self.model = self.model.to("cpu")
+
+        self.collect_metric(flops, constants.FLOPS_KEY)
 
         if compute_grads:
             for i, layer in enumerate(self.model_params):
@@ -71,12 +73,14 @@ class Client:
         self.num_epochs = num_epochs
         self.batch_size = batch_size
 
+        self.metrics = {}
+
         update = self.train()
 
         training_result = {
             constants.CLIENT_ID_KEY: self.id,
             constants.NUM_SAMPLES_KEY: self.num_train_samples,
-            constants.FLOPS_KEY: self.flops
+            constants.METRICS_KEY: self.metrics
         }
 
         if type(update) == dict:
@@ -166,3 +170,7 @@ class Client:
             res.append(torch.normal(mean=torch.ones(shape) * mean, std=torch.ones(shape) * std))
         
         return res.to(dtype)
+
+
+    def collect_metric(self, metric, metric_name):
+        self.metrics[metric_name] = metric

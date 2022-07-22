@@ -67,3 +67,11 @@ def GRAPHS_DIR(output_dir: Union[str, Path]) -> Path:
         os.makedirs(stats_dir, exist_ok=True)
     
     return stats_dir
+
+
+def METRICS_DIR(output_dir: Union[str, Path]) -> Path:
+    metrics_dir = Path(output_dir, "metrics")
+    if not metrics_dir.is_dir():
+        os.makedirs(metrics_dir, exist_ok=True)
+    
+    return metrics_dir
