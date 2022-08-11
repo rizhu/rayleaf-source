@@ -1,4 +1,6 @@
 from pathlib import Path
+
+
 import torch
 
 
@@ -54,19 +56,21 @@ class Client:
 
     def train_model(self, compute_grads: bool = False):
         if compute_grads:
-            self.grads = []
+            grads = []
             for layer in self.model_params:
-                self.grads.append(layer.detach().clone())
+                grads.append(layer.detach().clone())
 
-        self.model = self.model.to(self.device)
+        self.model.to(self.device)
         flops = self.model.train_model(self.train_data, self.num_epochs, self.batch_size, self.device)
-        self.model = self.model.to("cpu")
+        self.model.to("cpu")
 
         self.collect_metric(flops, constants.FLOPS_KEY)
 
         if compute_grads:
             for i, layer in enumerate(self.model_params):
-                self.grads[i] = layer - self.grads[i]
+                grads[i] = layer - grads[i]
+            
+            return grads
 
 
     def _train(self, num_epochs: int = 1, batch_size: int = 10) -> tuple:
@@ -99,9 +103,9 @@ class Client:
         elif set_to_use == "test" or set_to_use == "val":
             data = self.eval_data
 
-        self.model = self.model.to(self.device)
+        self.model.to(self.device)
         eval_metrics = self.model.eval_model(data, batch_size, self.device)
-        self.model = self.model.to("cpu")
+        self.model.to("cpu")
 
         eval_metrics[stats.CLIENT_ID_KEY] = self.id
         return eval_metrics
@@ -115,16 +119,6 @@ class Client:
     @model_params.setter
     def model_params(self, params: list) -> None:
         self.model.set_params(params)
-
-
-    @property
-    def grads(self) -> list:
-        return self._grads
-
-    
-    @grads.setter
-    def grads(self, grads: list) -> None:
-        self._grads = grads
 
 
     @property
