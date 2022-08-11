@@ -7,7 +7,7 @@ ignore-vcs = true
 
 [project]
 name = "rayleaf"
-version = "0.0.4"
+version = "0.0.5"
 authors = [
   { name="Richard Hu", email="r.hu@berkeley.edu" },
 ]
@@ -21,8 +21,11 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "aiohttp>=3.7.4",
+    "aiohttp-cors>=0.7.0",
     "matplotlib>=3.5.2",
     "numpy>=1.23.0",
+    "opencensus>=0.11.0",
     "pandas>=1.4.3",
     "Pillow>=9.2.0",
     "ray>=1.13.0",
