@@ -15,7 +15,7 @@ class Server:
         self.layer_shapes = [layer.shape for layer in self.model_params]
 
         self.client_clusters = client_clusters
-        self.num_client_clusters = len(client_clusters)
+        self.num_client_clusters = len(client_clusters) 
 
         self.updates = []
         self.selected_clients = [[] for _ in range(self.num_client_clusters)]
@@ -76,7 +76,7 @@ class Server:
 
 
     def update_model(self) -> None:
-        n = len(self.updates)
+        num_clients = len(self.updates)
 
         client_num_samples = []
         for update in self.updates:
@@ -90,7 +90,8 @@ class Server:
             self.model_params[i] = self.update_layer(
                 self.model_params[i].clone().detach(),
                 layer_updates,
-                client_num_samples.copy(), n
+                client_num_samples.copy(),
+                num_clients
             ).to(layer.dtype)
 
 
