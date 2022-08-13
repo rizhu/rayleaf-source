@@ -61,8 +61,7 @@ def make_client_cluster(num_gpus: float) -> type:
             updates = []
 
             for client in clients_to_train:
-                client.model_params = model_params
-                training_result = client._train(num_epochs, batch_size)
+                training_result = client._train(model_params, num_epochs, batch_size)
 
                 updates.append(training_result)
             
