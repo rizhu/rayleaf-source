@@ -7,12 +7,14 @@ from tqdm import tqdm
 
 import rayleaf.entities.constants as constants
 
+from rayleaf.tensorarray.tensorarray import TensorArray
+
 
 class Server:
     
     def __init__(self, model_params: list, client_clusters: list) -> None:
-        self.model_params = model_params
-        self.layer_shapes = [layer.shape for layer in self.model_params]
+        self.model_params = TensorArray(model_params)
+        self.layer_shapes = self.model_params.shapes
 
         self.client_clusters = client_clusters
         self.num_client_clusters = len(client_clusters) 
@@ -40,12 +42,16 @@ class Server:
         return selected_client_nums
 
 
+    def server_update(self):
+        return self.model_params
+
+
     def train_clients(self, num_epochs: int = 1, batch_size: int = 10) -> None:
         training_futures = []
         for client_cluster_idx, cluster_clients in enumerate(self.selected_clients):
             if len(cluster_clients) > 0:
                 training_future = self.client_clusters[client_cluster_idx].train_clients.remote(
-                    model_params=self.model_params,
+                    server_update=self.server_update(),
                     selected_clients=cluster_clients,
                     num_epochs=num_epochs,
                     batch_size=batch_size
@@ -66,49 +72,27 @@ class Server:
         return self.updates
 
 
-    def update_layer(self, current_params, updates: list, client_num_samples: list, num_clients: int):
-        new_layer = 0
+    def update_model(self, client_updates):
+        num_samples = 0
+        average_params = 0
 
-        for i in range(num_clients):
-            new_layer += updates[i] * client_num_samples[i]
+        for update in client_updates:
+            average_params += update[constants.MODEL_PARAMS_KEY] * update[constants.NUM_SAMPLES_KEY]
+            num_samples += update[constants.NUM_SAMPLES_KEY]
         
-        return new_layer / self.num_train_samples
+        average_params /= num_samples
 
-
-    def update_model(self) -> None:
-        num_clients = len(self.updates)
-
-        client_num_samples = []
-        for update in self.updates:
-            client_num_samples.append(update[constants.NUM_SAMPLES_KEY])
-
-        for i, layer in enumerate(self.model_params):
-            layer_updates = []
-            for update in self.updates:
-                layer_updates.append(update[constants.UPDATE_KEY][i])
-            
-            self.model_params[i] = self.update_layer(
-                self.model_params[i].clone().detach(),
-                layer_updates,
-                client_num_samples.copy(),
-                num_clients
-            ).to(layer.dtype)
+        return average_params
 
 
     @torch.no_grad()
     def _update_model(self) -> None:
-        self.num_train_samples = 0
+        client_updates = []
         for update in self.updates:
-            self.num_train_samples += update[constants.NUM_SAMPLES_KEY]
+            client_updates.append(update[constants.UPDATE_KEY])
 
-        self.update_model()
+        self.model_params = self.update_model(client_updates=client_updates)
         self.updates.clear()
-
-
-    def reset_model(self) -> None:
-        new_model_params = [0 for _ in range(len(self.model_params))]
-        
-        self.model_params = new_model_params
 
 
     def eval_model(self, eval_all_clients: bool = True, set_to_use: str = "test", batch_size: int = 10) -> dict:
@@ -175,40 +159,10 @@ class Server:
 
 
     @property
-    def model_params(self) -> list:
+    def model_params(self) -> TensorArray:
         return self._model_params
 
     
     @model_params.setter
-    def model_params(self, params: list) -> None:
+    def model_params(self, params: TensorArray) -> None:
         self._model_params = params
-
-
-    def param_like_zeros(self, dtype = torch.float32) -> list:
-        res = []
-        for shape in self.layer_shapes:
-            res.append(torch.zeros(shape))
-        
-        return res.to(dtype)
-    
-
-    def param_like_const(self, value: float = 1, dtype = torch.float32) -> list:
-        res = []
-
-        for shape in self.layer_shapes:
-            res.append(torch.ones(shape) * value)
-        
-        return res.to(dtype)
-
-
-    def param_like_ones(self, dtype = torch.float32) -> list:
-        return self.param_like_const(dtype=dtype)
-    
-
-    def param_like_normal(self, mean: float = 0, std: float = 1, dtype = torch.float32) -> list:
-        res = []
-
-        for shape in self.layer_shapes:
-            res.append(torch.normal(mean=torch.ones(shape) * mean, std=torch.ones(shape) * std))
-        
-        return res.to(dtype)

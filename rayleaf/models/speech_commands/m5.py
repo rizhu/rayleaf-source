@@ -37,15 +37,11 @@ class ClientModel(Model):
         self.pool4 = nn.MaxPool1d(kernel_size=4)
         self.fc1 = nn.Linear(2 * 32, self.num_classes)
 
-        self.bn_running_param_indices = set([2, 3, 6, 7, 10, 11, 14, 15])
-
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = self.optimizer(self.parameters(), lr=self.lr)
 
         self.collate_fn = sc_utils.make_collate_fn(frequency=ORIGINAL_FREQ)
         self.resample = torchaudio.transforms.Resample(orig_freq=ORIGINAL_FREQ, new_freq=RESAMPLE_FREQ)
-
-        self.update_running_params = True
 
 
     def forward(self, x):
@@ -76,20 +72,3 @@ class ClientModel(Model):
 
     def generate_dataset(self, data: Dataset, dataset_dir: Path) -> Dataset:
         return data
-
-
-    @property
-    def params(self) -> list:
-        return list(self.parameters())
-
-
-    @params.setter
-    def params(self, new_params: list) -> None:
-        with torch.no_grad():
-            if self.update_running_params:
-                for i, param_tensor in enumerate(self.params):
-                    param_tensor.copy_(new_params[i])
-            else:
-                for i, layer in enumerate(new_params):
-                    if i not in self.bn_running_param_indices:
-                        self.params[i].copy_(layer)

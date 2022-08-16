@@ -50,7 +50,7 @@ def make_client_cluster(num_gpus: float) -> type:
         
         def train_clients(
             self,
-            model_params: list,
+            server_update,
             selected_clients: list = None,
             num_epochs: int = 1,
             batch_size: int = 10
@@ -61,7 +61,7 @@ def make_client_cluster(num_gpus: float) -> type:
             updates = []
 
             for client in clients_to_train:
-                training_result = client._train(model_params, num_epochs, batch_size)
+                training_result = client._train(server_update, num_epochs, batch_size)
 
                 updates.append(training_result)
             
