@@ -100,7 +100,9 @@ class TensorArray(np.lib.mixins.NDArrayOperatorsMixin):
                 " not an instance of torch.nn.Module. Found object of type {type(tensors)}")
 
         self._dtype = self.tensors[0].dtype if len(self.tensors) > 0 else None
+        
         self._shapes = None
+        self._size = None
 
 
     @property
@@ -113,15 +115,29 @@ class TensorArray(np.lib.mixins.NDArrayOperatorsMixin):
         return self._dtype
 
 
+    def _compute_shapes_and_size(self) -> None:
+        self._shapes = []
+        self._size = 0
+        for param in self.tensors:
+            self._shapes.append(param.shape)
+            self._size += np.prod(param.shape)
+        self._shapes = tuple(self._shapes)
+
+
     @property
     def shapes(self) -> tuple:
         if self._shapes is None:
-            self._shapes = []
-            for param in self.tensors:
-                self._shapes.append(param.shape)
-            self._shapes = tuple(self._shapes)
+            self._compute_shapes_and_size()
         
         return self._shapes
+
+
+    @property
+    def size(self) -> int:
+        if self._size is None:
+            self._compute_shapes_and_size()
+        
+        return self._size
 
 
     def __repr__(self):
@@ -200,6 +216,10 @@ class TensorArray(np.lib.mixins.NDArrayOperatorsMixin):
         return flattened.to(dtype)
 
 
+    def flat(self, dtype=None):
+        return self.__array__(dtype=dtype)
+
+
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         if method == '__call__':
             first_shapes = None
@@ -212,7 +232,7 @@ class TensorArray(np.lib.mixins.NDArrayOperatorsMixin):
                     elif first_shapes != input_.shapes:
                         raise TypeError(f"Found mismatched dimensions: {first_shapes} and {input_.shapes}")
 
-                    sanitized_inputs.append(input_.__array__())
+                    sanitized_inputs.append(input_.flat())
                 else:
                     sanitized_inputs.append(input_)
 
@@ -234,7 +254,7 @@ class TensorArray(np.lib.mixins.NDArrayOperatorsMixin):
 
     @implements(np.linalg.norm)
     def norm(x, ord=None, axis=None, keepdims=False):
-        return np.linalg.norm(x.__array__(), ord=ord, axis=axis, keepdims=keepdims)
+        return np.linalg.norm(x.flat(), ord=ord, axis=axis, keepdims=keepdims)
 
 
     def to(self, arg):
