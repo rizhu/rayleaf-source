@@ -101,7 +101,7 @@ class Client:
 
         self.model.train()
         for _ in range(self.num_epochs):
-            self._run_epoch(train_dataloader)
+            self.run_epoch(train_dataloader)
 
         self.model.to("cpu")
 
