@@ -1,7 +1,11 @@
 import numpy as np
 import torch
 
+from scipy.linalg import block_diag
 from torch import nn, Tensor
+
+
+from .utils import _tensor_to_block_diag, _block_diag_to_tensor
 
 
 HANDLED_FUNCTIONS = {}
@@ -15,31 +19,6 @@ def implements(np_function):
 
 
 class TensorArray(np.lib.mixins.NDArrayOperatorsMixin):
-
-
-    def unflatten(flat_arr, shapes):
-        try:
-            if (flat_arr.ndim > 1):
-                raise TypeError(f"Input array should be 1-dimensional but has shape {flat_arr.shape}")
-        except AttributeError:
-            raise TypeError(f"Input array should be a numpy.ndarray or torch.Tensor but found {type(flat_arr)}")
-
-        output_tensors = []
-        start_index = 0
-
-        for shape in shapes:
-            try:
-                count = np.prod(shape)
-                output_tensors.append(Tensor(flat_arr[start_index:start_index + count]).reshape(shape))
-            except TypeError:
-                raise TypeError(f"shapes parameter must be an iterable of iterables of ints")
-            start_index += count
-
-        if start_index != flat_arr.shape[0]:
-            raise TypeError(f"Input array length and shapes mismatch. Input array has length {flat_arr.shape[0]}"
-                " but shapes implies length of {start_index}")
-        
-        return TensorArray(output_tensors)
 
 
     def _find_shapes(arg) -> tuple:
@@ -218,6 +197,50 @@ class TensorArray(np.lib.mixins.NDArrayOperatorsMixin):
 
     def flat(self, dtype=None):
         return self.__array__(dtype=dtype)
+
+
+    def unflatten(flat_arr, shapes):
+        try:
+            if (flat_arr.ndim > 1):
+                raise TypeError(f"Input array should be 1-dimensional but has shape {flat_arr.shape}")
+        except AttributeError:
+            raise TypeError(f"Input array should be a numpy.ndarray or torch.Tensor but found {type(flat_arr)}")
+
+        output_tensors = []
+        start_index = 0
+
+        for shape in shapes:
+            try:
+                count = np.prod(shape)
+                output_tensors.append(Tensor(flat_arr[start_index:start_index + count]).reshape(shape).requires_grad_(False))
+            except TypeError:
+                raise TypeError(f"shapes parameter must be an iterable of iterables of ints")
+            start_index += count
+
+        if start_index != flat_arr.shape[0]:
+            raise TypeError(f"Input array length and shapes mismatch. Input array has length {flat_arr.shape[0]}"
+                " but shapes implies length of {start_index}")
+        
+        return TensorArray(output_tensors)
+
+
+    def as_block_diag(self, dtype=None):
+        mats = []
+        for tensor in self.tensors:
+            mats.append(_tensor_to_block_diag(tensor))
+        
+        blocked = block_diag(*mats)
+        return Tensor(blocked).to(dtype).requires_grad_(False)
+
+
+    def from_block_diag(mat, shapes):
+        curr_inds = [0, 0]
+
+        tensors = []
+        for shape in shapes:
+            tensors.append(_block_diag_to_tensor(mat, shape, start_inds=curr_inds))
+        
+        return TensorArray(tensors)
 
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
