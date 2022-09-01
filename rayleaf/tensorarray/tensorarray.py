@@ -213,7 +213,7 @@ class TensorArray(np.lib.mixins.NDArrayOperatorsMixin):
             flattened_layers.append(tensor.flatten())
         flattened = torch.cat(flattened_layers)
         
-        return flattened.to(dtype)
+        return flattened.cpu().to(dtype)
 
 
     def flat(self, dtype=None):
