@@ -119,7 +119,7 @@ class Server:
         stats = []
 
         num_futures = len(eval_futures)
-        with tqdm(total=num_futures, leave=False, desc="Evaluating model") as pbar:
+        with tqdm(total=num_futures, leave=False, desc=f"Evaluating model on {set_to_use} set") as pbar:
             while len(eval_futures) > 0:
                 complete, incomplete = ray.wait(eval_futures)
 

@@ -23,7 +23,6 @@ class Model(nn.Module):
         self.flops = 0
 
         self.collate_fn = default_collate
-        self.bn_running_param_indices = set()
 
         self._shapes = None
 

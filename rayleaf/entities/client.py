@@ -34,7 +34,10 @@ class Client:
         self.client_num = client_num
 
         self.device = device
-        self.model = model(**model_settings)
+
+        self.model_cls = model
+        self.model_settings = model_settings
+        self.model = model(**self.model_settings)
 
         self.id = client_id
         self.group = group
@@ -49,6 +52,7 @@ class Client:
         self.metrics = {}
         self.flops = 0
         self.flops_counted = False
+        self.delete_model_on_completion = False
 
         self.init()
 
@@ -71,6 +75,9 @@ class Client:
             constants.UPDATE_KEY: update
         }
 
+        if self.delete_model_on_completion:
+            del self.model
+        
         return training_result
 
 
@@ -155,6 +162,10 @@ class Client:
         self.model.to("cpu")
 
         eval_metrics[stats.CLIENT_ID_KEY] = self.id
+
+        if self.delete_model_on_completion:
+            del self.model
+        
         return eval_metrics
 
 
@@ -200,6 +211,8 @@ class Client:
 
     @model_params.setter
     def model_params(self, params: Union[list, TensorArray]) -> None:
+        if not hasattr(self, "model"):
+            self.model = self.model_cls(**self.model_settings)
         self.model.set_params(params)
 
 
