@@ -7,7 +7,7 @@ ignore-vcs = true
 
 [project]
 name = "rayleaf"
-version = "0.0.9"
+version = "0.0.11"
 authors = [
   { name="Richard Hu", email="r.hu@berkeley.edu" },
 ]
@@ -29,7 +29,7 @@ dependencies = [
     "pandas>=1.4.3",
     "Pillow>=9.2.0",
     "prometheus_client>=0.14.1",
-    "ray>=2.0.0",
+    "ray[default]>=2.0.0",
     "scipy>=1.9.1",
     "tabulate>=0.8.10",
     "thop>=0.1.1.post2207130030",
