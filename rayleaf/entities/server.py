@@ -25,6 +25,8 @@ class Server:
         self.clients_profiled = set()
         self.client_flops = []
 
+        self.curr_round = 0
+
         self.init()
 
 
@@ -32,7 +34,9 @@ class Server:
         pass
 
 
-    def select_clients(self, my_round: int, possible_clients: list, num_clients: int = 20) -> None:
+    def select_clients(self, curr_round: int, possible_clients: list, num_clients: int = 20) -> None:
+        self.curr_round = curr_round
+
         selected_client_nums = np.random.choice(possible_clients, num_clients, replace=False)
         self.selected_clients = [[] for _ in range(self.num_client_clusters)]
 
